@@ -151,6 +151,7 @@ void log_ebx(uint32_t ebx)
 
 // this crashes because ebx can apparently be NULL even though it shouldn't be
 // so here's a quick check if it is NULL ...
+// TODO: so far this is untested
 ASM(AIWallTactic_crashfix)
 {
 #ifdef DEBUG_CRASHFIX
