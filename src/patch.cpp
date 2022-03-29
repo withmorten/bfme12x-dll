@@ -34,6 +34,16 @@ int parseNoWatchdog(char **argv, int argc) { XCALL(0x0041FF9B); }
 
 int parseNoMusic(char **argv, int argc) { XCALL(0x0043F6E3); }
 
+int parseNoMuteOnFocusLoss(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xA94) = false;
+	}
+
+	return 1;
+}
+
 int parseNoLogo(char **argv, int argc)
 {
 	if (TheWriteableGlobalData)
@@ -62,6 +72,10 @@ int parseNoHouseColor(char **argv, int argc)
 	return 1;
 }
 
+int parseShellMap(char **argv, int argc) { XCALL(0x00411EF0); }
+
+int parseWinCursors(char **argv, int argc) { XCALL(0x0044335B); }
+
 int parseBuildMapCache(char **argv, int argc) { XCALL(0x00438E56); }
 
 int parseStartingMoney(char **argv, int argc)
@@ -75,6 +89,10 @@ int parseStartingMoney(char **argv, int argc)
 
 	return 2;
 }
+
+int parseFile(char **argv, int argc) { XCALL(0x00462C50); }
+
+int parseSkipMapUnroll(char **argv, int argc) { XCALL(0x004609A0); }
 
 cmd_arg params[] =
 {
@@ -92,11 +110,16 @@ cmd_arg params[] =
 	{ "-noWatchdog",				parseNoWatchdog },
 
 	{ "-noMusic",					parseNoMusic },
+	{ "-noMuteOnFocusLoss",			parseNoMuteOnFocusLoss },
 	{ "-nologo",					parseNoLogo },
 	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
 	{ "-nohousecolor",				parseNoHouseColor },
+	{ "-shellmap",					parseShellMap },
+	{ "-winCursors",				parseWinCursors }, // doesn't seem to work
 	{ "-buildmapcache",				parseBuildMapCache },
 	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
+	{ "-file",						parseFile },
+	{ "-skipmapunroll",				parseSkipMapUnroll },
 };
 
 void patch()
