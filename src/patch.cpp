@@ -57,6 +57,18 @@ int parseNoShroud(char **argv, int argc)
 
 int parseBuildMapCache(char **argv, int argc) { XCALL(0x00438E56); }
 
+int parseStartingMoney(char **argv, int argc)
+{
+	if (argc > 1)
+	{
+		FIELD(int, TheWriteableGlobalData, 0x11F0) = atoi(argv[1]);
+
+		GameFlags |= 0x10;
+	}
+
+	return 2;
+}
+
 cmd_arg params[] =
 {
 	{ "-noshellmap",				parseNoShellMap },
@@ -74,8 +86,9 @@ cmd_arg params[] =
 
 	{ "-noMusic",					parseNoMusic },
 	{ "-nologo",					parseNoLogo },
-	{ "-noshroud",					parseNoShroud },
+	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
 	{ "-buildmapcache",				parseBuildMapCache },
+	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
 };
 
 void patch()
@@ -230,6 +243,18 @@ int parseNoShroud(char **argv, int argc)
 
 int parseBuildMapCache(char **argv, int argc) { XCALL(0x007BA252); }
 
+int parseStartingMoney(char **argv, int argc)
+{
+	if (argc > 1)
+	{
+		FIELD(int, TheWriteableGlobalData, 0x1104) = atoi(argv[1]);
+
+		GameFlags |= 0x10;
+	}
+
+	return 2;
+}
+
 int parseEditSystemCreateAHero(char **argv, int argc)
 {
 	g_bEditSystemCreateAHeroes = true;
@@ -258,8 +283,9 @@ cmd_arg params[] =
 
 	{ "-noMusic",					parseNoMusic },
 	{ "-nologo",					parseNoLogo },
-	{ "-noshroud",					parseNoShroud },
+	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
 	{ "-buildmapcache",				parseBuildMapCache },
+	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
 	{ "-editSystemCreateAHero",		parseEditSystemCreateAHero },
 };
 
