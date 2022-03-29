@@ -10,6 +10,8 @@ struct GlobalData;
 extern GlobalData *&TheWriteableGlobalData;
 
 extern uint32_t &GameFlags;
+
+extern bool &g_bHouseColor;
 };
 
 namespace wb1
@@ -23,7 +25,8 @@ extern GlobalData *&TheWriteableGlobalData;
 
 extern uint32_t &GameFlags;
 
-extern bool &g_bEditSystemCreateAHeroes;
+extern bool &g_bHouseColor;
+extern bool &g_bEditSystemCreateAHero;
 };
 
 namespace wb2x

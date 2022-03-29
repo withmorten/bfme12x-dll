@@ -55,6 +55,13 @@ int parseNoShroud(char **argv, int argc)
 	return 1;
 }
 
+int parseNoHouseColor(char **argv, int argc)
+{
+	g_bHouseColor = false;
+
+	return 1;
+}
+
 int parseBuildMapCache(char **argv, int argc) { XCALL(0x00438E56); }
 
 int parseStartingMoney(char **argv, int argc)
@@ -87,6 +94,7 @@ cmd_arg params[] =
 	{ "-noMusic",					parseNoMusic },
 	{ "-nologo",					parseNoLogo },
 	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
+	{ "-nohousecolor",				parseNoHouseColor },
 	{ "-buildmapcache",				parseBuildMapCache },
 	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
 };
@@ -241,6 +249,13 @@ int parseNoShroud(char **argv, int argc)
 	return 1;
 }
 
+int parseNoHouseColor(char **argv, int argc)
+{
+	g_bHouseColor = false;
+
+	return 1;
+}
+
 int parseBuildMapCache(char **argv, int argc) { XCALL(0x007BA252); }
 
 int parseStartingMoney(char **argv, int argc)
@@ -257,7 +272,7 @@ int parseStartingMoney(char **argv, int argc)
 
 int parseEditSystemCreateAHero(char **argv, int argc)
 {
-	g_bEditSystemCreateAHeroes = true;
+	g_bEditSystemCreateAHero = true;
 
 	return 1;
 }
@@ -284,6 +299,7 @@ cmd_arg params[] =
 	{ "-noMusic",					parseNoMusic },
 	{ "-nologo",					parseNoLogo },
 	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
+	{ "-nohousecolor",				parseNoHouseColor },
 	{ "-buildmapcache",				parseBuildMapCache },
 	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
 	{ "-editSystemCreateAHero",		parseEditSystemCreateAHero },
