@@ -45,6 +45,16 @@ int parseNoLogo(char **argv, int argc)
 	return 1;
 }
 
+int parseNoShroud(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xCF4) = false;
+	}
+
+	return 1;
+}
+
 int parseBuildMapCache(char **argv, int argc) { XCALL(0x00438E56); }
 
 cmd_arg params[] =
@@ -64,6 +74,7 @@ cmd_arg params[] =
 
 	{ "-noMusic",					parseNoMusic },
 	{ "-nologo",					parseNoLogo },
+	{ "-noshroud",					parseNoShroud },
 	{ "-buildmapcache",				parseBuildMapCache },
 };
 
@@ -207,6 +218,16 @@ int parseNoLogo(char **argv, int argc)
 	return 1;
 }
 
+int parseNoShroud(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xC69) = false;
+	}
+
+	return 1;
+}
+
 int parseBuildMapCache(char **argv, int argc) { XCALL(0x007BA252); }
 
 int parseEditSystemCreateAHero(char **argv, int argc)
@@ -237,6 +258,7 @@ cmd_arg params[] =
 
 	{ "-noMusic",					parseNoMusic },
 	{ "-nologo",					parseNoLogo },
+	{ "-noshroud",					parseNoShroud },
 	{ "-buildmapcache",				parseBuildMapCache },
 	{ "-editSystemCreateAHero",		parseEditSystemCreateAHero },
 };
@@ -248,7 +270,7 @@ ASM(fix_parseCommandLine)
 	__asm
 	{
 		push num_params
-		mov eax, 0x007BA7E1
+		mov eax, 0x007BA7E1 // parseCommandLine()
 		call eax
 	}
 
@@ -294,12 +316,15 @@ void patch()
 	const char *LotRIcon = "LotRIcon.exe";
 	Patch(0x00635FA4 + 1, LotRIcon);
 
-	// unknown gamereplays patches, probably random number generation related
-	BYTE sub_6D315D[] = { 0x53, 0x8B, 0x01, 0x31, 0xD2, 0xBB, 0x05, 0x84, 0x08, 0x08, 0xF7, 0xE3, 0x83, 0xC0, 0x01, 0x89, 0x01, 0x31, 0xD0, 0x5B, 0xC3 };
-	PatchBytes(0x006D315D, sub_6D315D);
+	if (get_private_profile_bool("gamereplays", TRUE))
+	{
+		// unknown gamereplays patches, probably random number generation related
+		BYTE sub_6D315D[] = { 0x53, 0x8B, 0x01, 0x31, 0xD2, 0xBB, 0x05, 0x84, 0x08, 0x08, 0xF7, 0xE3, 0x83, 0xC0, 0x01, 0x89, 0x01, 0x31, 0xD0, 0x5B, 0xC3 };
+		PatchBytes(0x006D315D, sub_6D315D);
 
-	BYTE sub_6D31D4[] = { 0x53, 0x52, 0xBB, 0xED, 0xFF, 0xFF, 0x7F, 0xF7, 0xE3, 0x89, 0x01, 0x89, 0x41, 0x04, 0x89, 0x41, 0x08, 0x89, 0x41, 0x0C, 0x89, 0x41, 0x10, 0x89, 0x41, 0x14, 0x5A, 0x5B, 0xC3 };
-	PatchBytes(0x006D31D4, sub_6D31D4);
+		BYTE sub_6D31D4[] = { 0x53, 0x52, 0xBB, 0xED, 0xFF, 0xFF, 0x7F, 0xF7, 0xE3, 0x89, 0x01, 0x89, 0x41, 0x04, 0x89, 0x41, 0x08, 0x89, 0x41, 0x0C, 0x89, 0x41, 0x10, 0x89, 0x41, 0x14, 0x5A, 0x5B, 0xC3 };
+		PatchBytes(0x006D31D4, sub_6D31D4);
+	}
 
 	if (get_private_profile_bool("no_logo", TRUE))
 	{
