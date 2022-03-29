@@ -27,6 +27,11 @@ extern uint32_t &GameFlags;
 
 extern bool &g_bHouseColor;
 extern bool &g_bEditSystemCreateAHero;
+
+struct AsciiString
+{
+	void set(const char *) { XCALL(0x004050E6); }
+};
 };
 
 namespace wb2x

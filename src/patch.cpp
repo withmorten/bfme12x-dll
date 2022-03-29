@@ -3,13 +3,16 @@
 
 #include "patch.h"
 
-#define DEBUG_CRASHFIX // print some info to file about the crashfix
+#define DEBUG_CRASHFIX // print some info to file about the bfme2x crashfix
 
 #define is_bfme1() (*(uint32_t *)0x004600F0 == 0x6AEC8B55)
 #define is_wb1() (*(uint32_t *)0x00E2B0AC == 0x0010D9E9)
 
 #define is_bfme2x() (*(uint32_t *)0x004027F7 == 0xB6F7B4B8)
 #define is_wb2x() (*(uint32_t *)0x018463E7 == 0x000FF6E9)
+
+#define is_bfme2x_202() (*(uint32_t *)0x006D3172 == 0x90909090)
+#define is_bfme2x_202_850() (*(uint32_t *)0x005D8A65 == 0x008F1597)
 
 struct cmd_arg
 {
@@ -31,9 +34,7 @@ int parseFullVersion(char **argv, int argc) { XCALL(0x00409C73); }
 int parsePreferLocalFiles(char **argv, int argc) { XCALL(0x0042089C); }
 int parseWatchdog(char **argv, int argc) { XCALL(0x00417490); }
 int parseNoWatchdog(char **argv, int argc) { XCALL(0x0041FF9B); }
-
 int parseNoMusic(char **argv, int argc) { XCALL(0x0043F6E3); }
-
 int parseNoMuteOnFocusLoss(char **argv, int argc)
 {
 	if (TheWriteableGlobalData)
@@ -43,7 +44,38 @@ int parseNoMuteOnFocusLoss(char **argv, int argc)
 
 	return 1;
 }
+int parseNoViewLimit(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xCF2) = false;
+	}
 
+	return 1;
+}
+int parseHugeDump(char **argv, int argc) { XCALL(0x004043BD); }
+int parseSelectTheUnselectable(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xCF9) = false;
+	}
+
+	return 1;
+}
+int parseNoShroud(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xCF4) = false;
+	}
+
+	return 1;
+}
+int parseShellMap(char **argv, int argc) { XCALL(0x00411EF0); }
+int parseNoShellAnim(char **argv, int argc) { XCALL(0x0040B6C7); }
+int parseBuildMapCache(char **argv, int argc) { XCALL(0x00438E56); }
+int parseWinCursors(char **argv, int argc) { XCALL(0x0044335B); }
 int parseNoLogo(char **argv, int argc)
 {
 	if (TheWriteableGlobalData)
@@ -54,30 +86,27 @@ int parseNoLogo(char **argv, int argc)
 
 	return 1;
 }
-
-int parseNoShroud(char **argv, int argc)
+int parseQuickStart(char **argv, int argc)
 {
+	parseNoLogo(argv, argc);
+	parseNoShellMap(argv, argc);
+	parseNoShellAnim(argv, argc);
+
 	if (TheWriteableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xCF4) = false;
+		FIELD(bool, TheWriteableGlobalData, 0x11FC) = true;
 	}
 
 	return 1;
 }
-
+int parseFile(char **argv, int argc) { XCALL(0x00462C50); }
+int parseHelpText(char **argv, int argc) { XCALL(0x0043ED97); }
 int parseNoHouseColor(char **argv, int argc)
 {
 	g_bHouseColor = false;
 
 	return 1;
 }
-
-int parseShellMap(char **argv, int argc) { XCALL(0x00411EF0); }
-
-int parseWinCursors(char **argv, int argc) { XCALL(0x0044335B); }
-
-int parseBuildMapCache(char **argv, int argc) { XCALL(0x00438E56); }
-
 int parseStartingMoney(char **argv, int argc)
 {
 	if (argc > 1)
@@ -89,36 +118,54 @@ int parseStartingMoney(char **argv, int argc)
 
 	return 2;
 }
+int parseFastGamePlay(char **argv, int argc)
+{
+	GameFlags |= 0x8;
 
-int parseFile(char **argv, int argc) { XCALL(0x00462C50); }
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0x11EC) = true;
+	}
 
+	return 1;
+}
+int parseSkipPreload(char **argv, int argc) { XCALL(0x0040975A); }
+int parseLWTurbo(char **argv, int argc) { XCALL(0x0040FC95); }
 int parseSkipMapUnroll(char **argv, int argc) { XCALL(0x004609A0); }
 
 cmd_arg params[] =
 {
-	{ "-noshellmap",				parseNoShellMap },
-	{ "-mod",						parseMod },
-	{ "-noaudio",					parseNoAudio },
-	{ "-xres",						parseXRes },
-	{ "-yres",						parseYRes },
-	{ "-win",						parseWin },
-	{ "-scriptDebug2",				parseScriptDebug2 },
-	{ "-scriptDebugLite",			parseScriptDebugLite },
-	{ "-fullVersion",				parseFullVersion },
-	{ "-preferLocalFiles",			parsePreferLocalFiles },
-	{ "-Watchdog",					parseWatchdog },
-	{ "-noWatchdog",				parseNoWatchdog },
-
+	{ "-noshellmap",				parseNoShellMap }, // original
+	{ "-mod",						parseMod }, // original
+	{ "-noaudio",					parseNoAudio }, // original
+	{ "-xres",						parseXRes }, // original
+	{ "-yres",						parseYRes }, // original
+	{ "-win",						parseWin }, // original
+	{ "-scriptDebug2",				parseScriptDebug2 }, // original
+	{ "-scriptDebugLite",			parseScriptDebugLite }, // original
+	{ "-fullVersion",				parseFullVersion }, // original
+	{ "-preferLocalFiles",			parsePreferLocalFiles }, // original
+	{ "-Watchdog",					parseWatchdog }, // original
+	{ "-noWatchdog",				parseNoWatchdog }, // original
 	{ "-noMusic",					parseNoMusic },
+	{ "-noViewLimit",				parseNoViewLimit }, // no idea what it does
 	{ "-noMuteOnFocusLoss",			parseNoMuteOnFocusLoss },
-	{ "-nologo",					parseNoLogo },
+	{ "-hugedump",					parseHugeDump },
+	{ "-selectTheUnselectable",		parseSelectTheUnselectable }, // doesn't seem to work
 	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
-	{ "-nohousecolor",				parseNoHouseColor },
 	{ "-shellmap",					parseShellMap },
-	{ "-winCursors",				parseWinCursors }, // doesn't seem to work
+	{ "-noShellAnim",				parseNoShellAnim },
 	{ "-buildmapcache",				parseBuildMapCache },
-	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
+	{ "-winCursors",				parseWinCursors }, // doesn't seem to work
+	{ "-nologo",					parseNoLogo },
+	{ "-quickstart",				parseQuickStart },
 	{ "-file",						parseFile },
+	{ "-helpText",					parseHelpText }, // no idea what it does
+	{ "-nohousecolor",				parseNoHouseColor },
+	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
+	{ "-fastGamePlay",				parseFastGamePlay }, // doesn't seem to work
+	{ "-skipPreload",				parseSkipPreload }, // no idea what it does
+	{ "-lwturbo",					parseLWTurbo }, // no idea what it does
 	{ "-skipmapunroll",				parseSkipMapUnroll },
 };
 
@@ -247,10 +294,50 @@ int parseNoWatchdog(char **argv, int argc) { XCALL(0x007B9F5A); }
 int parseRif(char **argv, int argc) { XCALL(0x007B9F3F); }
 int parseFile(char **argv, int argc) { XCALL(0x007BACA4); }
 int parseResumeGame(char **argv, int argc) { XCALL(0x007BACE3); }
-int parseRandomSeed(char **argv, int argc) { XCALL(0x007BA795); }
-
 int parseNoMusic(char **argv, int argc) { XCALL(0x007B9FEB); }
+int parseNoViewLimit(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xC67) = false;
+	}
 
+	return 1;
+}
+int parseHugeDump(char **argv, int argc) { XCALL(0x007BA3E0); }
+int parseSelectTheUnselectable(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xC6C) = false;
+	}
+
+	return 1;
+}
+int parseNoShroud(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0xC69) = false;
+	}
+
+	return 1;
+}
+int parseShellMap(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		if (argc > 1)
+		{
+			(FIELD(AsciiString, TheWriteableGlobalData, 0xAEC)).set(argv[1]);
+		}
+	}
+
+	return 2;
+}
+int parseNoShellAnim(char **argv, int argc) { XCALL(0x007B9EF1); }
+int parseBuildMapCache(char **argv, int argc) { XCALL(0x007BA252); }
+int parseWinCursors(char **argv, int argc) { XCALL(0x007BA2A2); }
 int parseNoLogo(char **argv, int argc)
 {
 	if (TheWriteableGlobalData)
@@ -261,26 +348,35 @@ int parseNoLogo(char **argv, int argc)
 
 	return 1;
 }
-
-int parseNoShroud(char **argv, int argc)
+int parseQuickStart(char **argv, int argc)
 {
+	parseNoLogo(argv, argc);
+	parseNoShellMap(argv, argc);
+	parseNoShellAnim(argv, argc);
+
 	if (TheWriteableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xC69) = false;
+		FIELD(bool, TheWriteableGlobalData, 0x1110) = true;
 	}
 
 	return 1;
 }
-
+int parseHelpText(char **argv, int argc) { XCALL(0x007B9FD7); }
 int parseNoHouseColor(char **argv, int argc)
 {
 	g_bHouseColor = false;
 
 	return 1;
 }
+int parseNoMuteOnFocusLoss(char **argv, int argc)
+{
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0x9C5) = false;
+	}
 
-int parseBuildMapCache(char **argv, int argc) { XCALL(0x007BA252); }
-
+	return 1;
+}
 int parseStartingMoney(char **argv, int argc)
 {
 	if (argc > 1)
@@ -292,40 +388,66 @@ int parseStartingMoney(char **argv, int argc)
 
 	return 2;
 }
+int parseFastGamePlay(char **argv, int argc)
+{
+	GameFlags |= 0x8;
 
+	if (TheWriteableGlobalData)
+	{
+		FIELD(bool, TheWriteableGlobalData, 0x1100) = true;
+	}
+
+	return 1;
+}
+int parseNoSkipPreload(char **argv, int argc) { XCALL(0x007BA748); }
+int parseLWTurbo(char **argv, int argc) { XCALL(0x007BA77C); }
+int parseSkipMapUnroll(char **argv, int argc) { XCALL(0x007B9F6E); }
 int parseEditSystemCreateAHero(char **argv, int argc)
 {
 	g_bEditSystemCreateAHero = true;
 
 	return 1;
 }
+int parseRandomSeed(char **argv, int argc) { XCALL(0x007BA795); }
 
 cmd_arg params[] =
 {
-	{ "-noshellmap",				parseNoShellMap },
-	{ "-mod",						parseMod },
-	{ "-noaudio",					parseNoAudio },
-	{ "-xres",						parseXRes },
-	{ "-yres",						parseYRes },
-	{ "-win",						parseWin },
-	{ "-scriptDebug2",				parseScriptDebug2 },
-	{ "-scriptDebugLite",			parseScriptDebugLite },
-	{ "-fullVersion",				parseFullVersion },
-	{ "-preferLocalFiles",			parsePreferLocalFiles },
-	{ "-Watchdog",					parseWatchdog },
-	{ "-noWatchdog",				parseNoWatchdog },
-	{ "-rif",						parseRif },
-	{ "-file",						parseFile },
-	{ "-resumeGame",				parseResumeGame },
-	{ "-randomSeed",				parseRandomSeed },
-
+	{ "-noshellmap",				parseNoShellMap }, // original
+	{ "-mod",						parseMod }, // original
+	{ "-noaudio",					parseNoAudio }, // original
+	{ "-xres",						parseXRes }, // original
+	{ "-yres",						parseYRes }, // original
+	{ "-win",						parseWin }, // original
+	{ "-scriptDebug2",				parseScriptDebug2 }, // original
+	{ "-scriptDebugLite",			parseScriptDebugLite }, // original
+	{ "-fullVersion",				parseFullVersion }, // original
+	{ "-preferLocalFiles",			parsePreferLocalFiles }, // original
+	{ "-Watchdog",					parseWatchdog }, // original
+	{ "-noWatchdog",				parseNoWatchdog }, // original
+	{ "-rif",						parseRif }, // original
+	{ "-file",						parseFile }, // original
+	{ "-resumeGame",				parseResumeGame }, // original
 	{ "-noMusic",					parseNoMusic },
-	{ "-nologo",					parseNoLogo },
+	{ "-noViewLimit",				parseNoViewLimit }, // no idea what it does
+	{ "-hugedump",					parseHugeDump },
+	{ "-selectTheUnselectable",		parseSelectTheUnselectable }, // doesn't seem to work
 	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
-	{ "-nohousecolor",				parseNoHouseColor },
+	{ "-shellmap",					parseShellMap },
+	{ "-noShellAnim",				parseNoShellAnim },
 	{ "-buildmapcache",				parseBuildMapCache },
+	{ "-winCursors",				parseWinCursors }, // doesn't seem to work
+	{ "-nologo",					parseNoLogo },
+	{ "-quickstart",				parseQuickStart },
+	{ "-helpText",					parseHelpText }, // no idea what it does
+	{ "-nohousecolor",				parseNoHouseColor },
+	{ "-noMuteOnFocusLoss",			parseNoMuteOnFocusLoss },
 	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
+	{ "-fastGamePlay",				parseFastGamePlay }, // doesn't seem to work
+	{ "-noSkipPreload",				parseNoSkipPreload }, // no idea what it does
+	{ "-lwturbo",					parseLWTurbo }, // no idea what it does
+	{ "-skipmapunroll",				parseSkipMapUnroll },
 	{ "-editSystemCreateAHero",		parseEditSystemCreateAHero },
+	{ "-randomSeed",				parseRandomSeed }, // original
 };
 
 const size_t num_params = sizeof(params) / sizeof(params[0]);
@@ -381,7 +503,7 @@ void patch()
 	const char *LotRIcon = "LotRIcon.exe";
 	Patch(0x00635FA4 + 1, LotRIcon);
 
-	if (get_private_profile_bool("gamereplays", TRUE))
+	if (!is_bfme2x_202())
 	{
 		// unknown gamereplays patches, probably random number generation related
 		BYTE sub_6D315D[] = { 0x53, 0x8B, 0x01, 0x31, 0xD2, 0xBB, 0x05, 0x84, 0x08, 0x08, 0xF7, 0xE3, 0x83, 0xC0, 0x01, 0x89, 0x01, 0x31, 0xD0, 0x5B, 0xC3 };
