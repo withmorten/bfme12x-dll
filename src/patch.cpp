@@ -8,6 +8,9 @@
 #define is_bfme1() (*(uint32_t *)0x004600F0 == 0x6AEC8B55)
 #define is_wb1() (*(uint32_t *)0x00E2B0AC == 0x0010D9E9)
 
+#define is_bfme2() (*(uint32_t *)0x00402C39 == 0xB5B5AAB8)
+#define is_wb2() (*(uint32_t *)0x01806837 == 0x001008E9)
+
 #define is_bfme2x() (*(uint32_t *)0x004027F7 == 0xB6F7B4B8)
 #define is_wb2x() (*(uint32_t *)0x018463E7 == 0x000FF6E9)
 
@@ -113,14 +116,14 @@ int parseStartingMoney(char **argv, int argc)
 	{
 		FIELD(int, TheWriteableGlobalData, 0x11F0) = atoi(argv[1]);
 
-		GameFlags |= 0x10;
+		g_flags |= 0x10;
 	}
 
 	return 2;
 }
 int parseFastGamePlay(char **argv, int argc)
 {
-	GameFlags |= 0x8;
+	g_flags |= 0x8;
 
 	if (TheWriteableGlobalData)
 	{
@@ -171,10 +174,20 @@ cmd_arg params[] =
 
 void patch()
 {
-	// commandline arguments
-	Patch(0x00463BE9 + 2, &params->name); // parseCommandLine()
-	Patch(0x00463C27 + 2, &params->name); // parseCommandLine()
-	Patch(0x00463C4B + 2, &params->parse); // parseCommandLine()
+	if (get_private_profile_bool("params", TRUE))
+	{
+		// commandline arguments
+		Patch(0x00463BE9 + 2, &params->name); // parseCommandLine()
+		Patch(0x00463C27 + 2, &params->name); // parseCommandLine()
+		Patch(0x00463C4B + 2, &params->parse); // parseCommandLine()
+
+		// disable desync for some args
+		Nop(0x00460A60, 5); // -noaudio
+		Nop(0x00460A6B, 3); // -noaudio
+		Nop(0x00460A6E, 5); // -noaudio
+
+		Nop(0x00460A00, 7); // -noMusic
+	}
 
 	// game only has 1 byte for sizeof, so we need more, thanks to the incremental build there's padding right before
 	Nop(0x00463BD8, 2);
@@ -232,6 +245,46 @@ void patch()
 }
 }
 
+namespace bfme2
+{
+void patch()
+{
+	// disable WinVerifyTrust check, fixes random version
+	Nop(0x00637E0A, 6 + 2 + 6 + 2);
+
+	// disable needing the launcher
+	Nop(0x004030B0, 5 + 2 + 2 + 5 + 2);
+	PatchByte(0x004030C0, 0xEB);
+
+	// fix auto defeat
+	BYTE sub_632D38[] = { 0xB0, 0x01, 0xC3 };
+	PatchBytes(0x00632D38, sub_632D38);
+
+	// disable langdata.dat loading
+	const char *langdata = "censored.dat";
+	PatchBytes(0x00C19734, (unsigned char *)langdata, strlen(langdata) + 1);
+
+	if (get_private_profile_bool("no_logo", TRUE))
+	{
+		Patch(0x00636A0A + 2, 0xAF3); // GlobalData::GlobalData()
+		Patch(0x00636A11 + 2, 0xAF2); // GlobalData::GlobalData()
+	}
+}
+};
+
+namespace wb2
+{
+void patch()
+{
+	if (get_private_profile_bool("compression_none_default", TRUE))
+	{
+		Patch(0x006BFD60 + 1, 0); // CompressionManager::getPreferredCompression()
+
+		Nop(0x0056BB86, 3 + 1 + 5 + 5 + 1 + 3 + 5 + 3 + 4 + 2 + 2); // MapSettings::OnInitDialog()
+	}
+}
+};
+
 namespace bfme2x
 {
 #ifdef DEBUG_CRASHFIX
@@ -278,6 +331,9 @@ ASM(AIWallTactic_crashfix)
 locret:
 	RET(0x009B63E7);
 }
+
+bool SkirmishAIManager::s_bDisableSkirmishAI;
+bool LivingWorldPlayer::s_bDisableWOTRAI;
 
 int parseNoShellMap(char **argv, int argc) { XCALL(0x007B9EC7); }
 int parseMod(char **argv, int argc) { XCALL(0x007BADB9); }
@@ -383,14 +439,14 @@ int parseStartingMoney(char **argv, int argc)
 	{
 		FIELD(int, TheWriteableGlobalData, 0x1104) = atoi(argv[1]);
 
-		GameFlags |= 0x10;
+		g_flags |= 0x10;
 	}
 
 	return 2;
 }
 int parseFastGamePlay(char **argv, int argc)
 {
-	GameFlags |= 0x8;
+	g_flags |= 0x8;
 
 	if (TheWriteableGlobalData)
 	{
@@ -402,6 +458,18 @@ int parseFastGamePlay(char **argv, int argc)
 int parseNoSkipPreload(char **argv, int argc) { XCALL(0x007BA748); }
 int parseLWTurbo(char **argv, int argc) { XCALL(0x007BA77C); }
 int parseSkipMapUnroll(char **argv, int argc) { XCALL(0x007B9F6E); }
+int parseDisableSkirmishAI(char **argv, int argc)
+{
+	SkirmishAIManager::s_bDisableSkirmishAI = true;
+
+	return 1;
+}
+int parseDisableWOTRAI(char **argv, int argc)
+{
+	LivingWorldPlayer::s_bDisableWOTRAI = true;
+
+	return 1;
+}
 int parseEditSystemCreateAHero(char **argv, int argc)
 {
 	g_bEditSystemCreateAHero = true;
@@ -446,6 +514,8 @@ cmd_arg params[] =
 	{ "-noSkipPreload",				parseNoSkipPreload }, // no idea what it does
 	{ "-lwturbo",					parseLWTurbo }, // no idea what it does
 	{ "-skipmapunroll",				parseSkipMapUnroll },
+	{ "-disableSkirmishAI",			parseDisableSkirmishAI },
+	{ "-disableWOTRAI",				parseDisableWOTRAI },
 	{ "-editSystemCreateAHero",		parseEditSystemCreateAHero },
 	{ "-randomSeed",				parseRandomSeed }, // original
 };
@@ -466,10 +536,24 @@ ASM(fix_parseCommandLine)
 
 void patch()
 {
-	// commandline arguments
-	Patch(0x007BAA4B + 1, params); // ArchiveFileSystem::loadMods()
-	Nop(0x007BAA54, 2); // get rid of push 16
-	InjectHook(0x007BAA56, &fix_parseCommandLine, PATCH_JUMP);
+	if (get_private_profile_bool("params", TRUE))
+	{
+		// commandline arguments
+		Patch(0x007BAA4B + 1, params); // ArchiveFileSystem::loadMods()
+		Nop(0x007BAA54, 2); // get rid of push 16
+		InjectHook(0x007BAA56, &fix_parseCommandLine, PATCH_JUMP);
+
+		// disable desync for some args
+		Nop(0x007BA029, 7); // -noaudio
+		Nop(0x007B9FF0, 7); // -noMusic
+
+		// required for -disableSkirmishAI
+		Patch(0x00C13E24, &SkirmishAIManager::_update);
+
+		// required for -disableWOTRAI
+		InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
+		InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
+	}
 
 	// disable WinVerifyTrust check, fixes random version
 	Nop(0x006444A1, 6 + 2 + 6 + 2);
@@ -562,13 +646,21 @@ void patch()
 	{
 		bfme1::patch();
 	}
-	else if (is_wb1())
+	else if (is_bfme2())
 	{
-		wb1::patch();
+		bfme2::patch();
 	}
 	else if (is_bfme2x())
 	{
 		bfme2x::patch();
+	}
+	else if (is_wb1())
+	{
+		wb1::patch();
+	}
+	else if (is_wb2())
+	{
+		wb2::patch();
 	}
 	else if (is_wb2x())
 	{
