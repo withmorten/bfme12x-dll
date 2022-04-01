@@ -25,6 +25,13 @@ struct cmd_arg
 
 namespace bfme1
 {
+struct GlobalData;
+extern GlobalData *&TheWriteableGlobalData;
+
+extern uint32_t &g_flags;
+
+extern bool &g_bHouseColor;
+
 int parseNoShellMap(char **argv, int argc) { XCALL(0x004428FC); }
 int parseMod(char **argv, int argc) { XCALL(0x00440070); }
 int parseNoAudio(char **argv, int argc) { XCALL(0x00419CEF); }
@@ -172,6 +179,31 @@ cmd_arg params[] =
 	{ "-skipmapunroll",				parseSkipMapUnroll },
 };
 
+ASM(fix_bFirewallEnabled)
+{
+	__asm
+	{
+		cmp byte ptr [ecx+0x270], 0
+		jz ret_false
+
+		cmp byte ptr [ecx+0x272], 0
+		jz ret_false
+
+		lea ecx, [ecx+0x268]
+		mov eax, 0x00A90B70
+		call eax
+		test al, al
+		jz ret_false
+	}
+
+	__asm inc al
+	RET(0x0091DB64);
+
+ret_false:;
+	__asm xor al, al
+	RET(0x0091DB64);
+}
+
 void patch()
 {
 	if (get_private_profile_bool("params", TRUE))
@@ -215,7 +247,12 @@ void patch()
 		Patch(0x00485388 + 2, 0xBB6); // GlobalData::GlobalData()
 	}
 
-	// doesnt't get centered properly
+	// actually use the bFirewallEnabled field
+	InjectHook(0x0091DB4B, &fix_bFirewallEnabled, PATCH_JUMP);
+	Nop(0x0091DB4B + 5, 1);
+	PatchByte(0x0091DB66 + 1, 0x84);
+
+	// doesnt't get centered properly, so don't enable this
 	if (get_private_profile_bool("alt_splash_screen", FALSE))
 	{
 		Patch(0x0045F337 + 4, 640);
@@ -247,6 +284,23 @@ void patch()
 
 namespace bfme2
 {
+struct LivingWorldLogic
+{
+	void AddPlayer(void *player, bool isLocalPlayer, int isHumanOrNot, void *currGameSlot) { XCALL(0x006BA8F1); }
+
+	void _AddPlayer(void *player, bool isLocalPlayer, int isHumanOrNot, void *currGameSlot)
+	{
+		printf("isDumb: %d, isLocalPlayer: %d, isHuman: %d, slotType: %d\n",
+			FIELD(bool, player, 0x24),
+			isLocalPlayer,
+			isHumanOrNot == 0,
+			currGameSlot ? FIELD(int, currGameSlot, 0x4) : -1
+		);
+
+		AddPlayer(player, isLocalPlayer, isHumanOrNot, currGameSlot);
+	}
+};
+
 void patch()
 {
 	// disable WinVerifyTrust check, fixes random version
@@ -269,6 +323,13 @@ void patch()
 		Patch(0x00636A0A + 2, 0xAF3); // GlobalData::GlobalData()
 		Patch(0x00636A11 + 2, 0xAF2); // GlobalData::GlobalData()
 	}
+
+	if (get_private_profile_bool("fix_wotr", FALSE))
+	{
+		// LivingWorldCampaign::CreatePlayers()
+		InjectHook(0x0092C65D, &LivingWorldLogic::_AddPlayer);
+		InjectHook(0x0092C6F5, &LivingWorldLogic::_AddPlayer);
+	}
 }
 };
 
@@ -287,6 +348,156 @@ void patch()
 
 namespace bfme2x
 {
+struct GlobalData;
+extern GlobalData *&TheWriteableGlobalData;
+
+extern uint32_t &g_flags;
+
+extern bool &g_bHouseColor;
+extern bool &g_bEditSystemCreateAHero;
+
+struct AsciiString
+{
+	void *_;
+
+	const char *str() { XCALL(0x004021D7); }
+	void set(const char *str) { XCALL(0x004050E6); }
+	int compare(const char *str) { XCALL(0x00406585); }
+};
+
+struct UnicodeString
+{
+	void *_;
+
+	const wchar_t *str() { XCALL(0x004021E7); }
+	void set(const wchar_t *str) { XCALL(0x0040514E); }
+	int compare(const wchar_t *str) { XCALL(0x00406628); }
+};
+
+bool s_bDisableSkirmishAI;
+
+struct SkirmishAIManager
+{
+	void update() { XCALL(0x006A96A0); }
+
+	void _update()
+	{
+		if (!s_bDisableSkirmishAI) update();
+	}
+};
+
+bool s_bDisableWOTRAI;
+
+struct LivingWorldPlayer
+{
+	void SetAI() { XCALL(0x006E188C); }
+	void SetDumb() { XCALL(0x006E1894); }
+
+	void _SetAI()
+	{
+		if (s_bDisableWOTRAI) SetDumb();
+		else SetAI();
+	}
+};
+
+struct LivingWorldLogic
+{
+	void AddPlayer(void *player, bool isLocalPlayer, int isHumanOrNot, void *currGameSlot) { XCALL(0x006BB3B5); }
+
+	void _AddPlayer(void *player, bool isLocalPlayer, int isHumanOrNot, void *currGameSlot)
+	{
+		printf("isDumb: %d, isLocalPlayer: %d, isHuman: %d, slotType: %d\n",
+			FIELD(bool, player, 0x24),
+			isLocalPlayer,
+			isHumanOrNot == 0,
+			currGameSlot ? FIELD(int, currGameSlot, 0x4) : -1
+		);
+
+		AddPlayer(player, isLocalPlayer, isHumanOrNot, currGameSlot);
+	}
+};
+
+struct StringTable
+{
+	struct Entry
+	{
+		AsciiString label;
+		UnicodeString value;
+	};
+
+	size_t num_entries;
+	Entry *entries;
+	Entry *sorted_entries;
+
+	bool readSTR(char *strFile) { XCALL(0x006E6E69); }
+	bool readCSF(char *csfFile) { XCALL(0x006E6C82); }
+
+	void _fix()
+	{
+		Entry *good_campaign_entry = NULL;
+		Entry *evil_campaign_entry = NULL;
+		Entry *expansion1_campaign_entry = NULL;
+		Entry *bonus_campaign_entry = NULL;
+
+		for (size_t i = 0; i < num_entries; i++)
+		{
+			Entry *entry = &entries[i];
+
+			if (!entry->label.compare("APT:GoodCampaign"))
+			{
+				good_campaign_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("APT:EvilCampaign"))
+			{
+				evil_campaign_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("APT:Expansion1Campaign"))
+			{
+				expansion1_campaign_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("APT:BonusCampaign"))
+			{
+				bonus_campaign_entry = entry;
+				continue;
+			}
+		}
+
+		if (good_campaign_entry && expansion1_campaign_entry)
+		{
+			expansion1_campaign_entry->value.set(good_campaign_entry->value.str());
+		}
+
+		if (evil_campaign_entry && bonus_campaign_entry)
+		{
+			bonus_campaign_entry->value.set(evil_campaign_entry->value.str());
+		}
+	}
+
+	bool _readSTR(char *strFile)
+	{
+		bool success = readSTR(strFile);
+
+		if (success) _fix();
+
+		return success;
+	}
+
+	bool _readCSF(char *csfFile)
+	{
+		bool success = readCSF(csfFile);
+
+		if (success) _fix();
+
+		return success;
+	}
+};
+
 #ifdef DEBUG_CRASHFIX
 FILE *crashfix_log;
 
@@ -331,9 +542,6 @@ ASM(AIWallTactic_crashfix)
 locret:
 	RET(0x009B63E7);
 }
-
-bool SkirmishAIManager::s_bDisableSkirmishAI;
-bool LivingWorldPlayer::s_bDisableWOTRAI;
 
 int parseNoShellMap(char **argv, int argc) { XCALL(0x007B9EC7); }
 int parseMod(char **argv, int argc) { XCALL(0x007BADB9); }
@@ -460,13 +668,13 @@ int parseLWTurbo(char **argv, int argc) { XCALL(0x007BA77C); }
 int parseSkipMapUnroll(char **argv, int argc) { XCALL(0x007B9F6E); }
 int parseDisableSkirmishAI(char **argv, int argc)
 {
-	SkirmishAIManager::s_bDisableSkirmishAI = true;
+	s_bDisableSkirmishAI = true;
 
 	return 1;
 }
 int parseDisableWOTRAI(char **argv, int argc)
 {
-	LivingWorldPlayer::s_bDisableWOTRAI = true;
+	s_bDisableWOTRAI = true;
 
 	return 1;
 }
@@ -603,19 +811,37 @@ void patch()
 		Patch(0x006430A2 + 2, 0xAF2); // GlobalData::GlobalData()
 	}
 
+	if (get_private_profile_bool("bfme2_campaign", FALSE))
+	{
+		// the only difference between this and SubsystemLegendExpansion1 is LinearCampaign vs LinearCampaignExpansion1
+		const char *SubsystemLegend = "Data\\INI\\Default\\SubsystemLegend.ini";
+		Patch(0x0063AF50 + 1, SubsystemLegend); // GameEngine::init()
+
+		Patch(0x0091BE8C + 1, 0x00C7CEB4); // change ANGMAR_CAMPAIGN to GOOD_CAMPAIGN
+		Patch(0x0091BF0E + 1, 0x0091BDCA); // change ANGMAR_BONUS_CAMPAIGN to EVIL_CAMPAIGN
+
+		// StringTable::init()
+		InjectHook(0x006E7DBB, &StringTable::_readSTR);
+		InjectHook(0x006E7DCF, &StringTable::_readCSF);
+	}
+
 	if (get_private_profile_bool("fix_wotr", FALSE))
 	{
 		NopTo(0x00841835, 0x00841844); // this just quick & dirty enables more humans to be enabled - BUT the game doesn't think 3-6 are humans!
 		
-		//Nop(0x00801543, 2);
-
 		//PatchByte(0x008017BD + 3, 8); // num allowed humans in wotr?
 
 		//BYTE wotr_patch[] = { 0xB8, 0x00, 0x00, 0x00, 0x00 };
 		//PatchBytes(0x008454EF, wotr_patch);
+
+		// LivingWorldCampaign::CreatePlayers()
+		InjectHook(0x009330B7, &LivingWorldLogic::_AddPlayer);
+		InjectHook(0x0093314F, &LivingWorldLogic::_AddPlayer);
+
+		//PatchByte(0x0084592A, 0xEB);
 	}
 
-	// some notes of other patches:
+	// some notes of other old patches:
 	// 0x0043D746: mov dl, 1 + nops for full crashdumps
 	// 0x00A20DDC: jmp, for empty create a heroes? now we know it's a generic seralizer for a data format, so not good to patch around in there
 }
