@@ -483,14 +483,17 @@ void patch()
 	// 0x009B6318 - fix crash when defeating enemy - apparently AIWallTactic related - AIWallTactic got added in rotwk ...
 	// 0x01542190 (function, not potential crash addr) in WorldBuilder, but unfortunately no debug asserts there
 	// is being called by AIWallTactic::update() (deduced from other vtable placements)
-	if (get_private_profile_bool("old_crashfix", TRUE))
+	if (!get_private_profile_bool("no_crashfix", FALSE))
 	{
-		Nop(0x009B63E1, 6);
-	}
-	else
-	{
-		InjectHook(0x009B63E1, &AIWallTactic_crashfix);
-		Nop(0x009B63E1 + 5);
+		if (get_private_profile_bool("old_crashfix", TRUE))
+		{
+			Nop(0x009B63E1, 6);
+		}
+		else
+		{
+			InjectHook(0x009B63E1, &AIWallTactic_crashfix);
+			Nop(0x009B63E1 + 5);
+		}
 	}
 
 	// disable langdata.dat loading
