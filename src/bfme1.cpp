@@ -10,6 +10,53 @@ extern uint32_t &g_flags;
 
 extern bool &g_bHouseColor;
 
+struct INI
+{
+	static void parseReal(INI *ini, void *obj, void *out, const void *null) { XCALL(0x00C52B20); }
+	static void parseInt(INI *ini, void *obj, void *out, const void *null) { XCALL(0x00C52A60); }
+	static void parseUnsignedShort(INI *ini, void *obj, void *out, const void *null) { XCALL(0x00C529E0); }
+
+	static void _parseRealBuildTime(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseReal(ini, obj, out, null);
+
+		float val = 5.0f;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseIntBuildCost(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseInt(ini, obj, out, null);
+
+		int val = 10;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseUnsignedShortBuildCost(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseUnsignedShort(ini, obj, out, null);
+
+		unsigned short val = 10;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseRealShroudClearingRange(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseReal(ini, obj, out, null);
+
+		float val = 999999.0f;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseIntExperienceAward(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseInt(ini, obj, out, null);
+
+		int val = 0x10000;
+		memcpy(out, &val, sizeof(val));
+	}
+};
+
 int parseNoShellMap(char **argv, int argc) { XCALL(0x004428FC); }
 int parseMod(char **argv, int argc) { XCALL(0x00440070); }
 int parseNoAudio(char **argv, int argc) { XCALL(0x00419CEF); }
@@ -244,6 +291,20 @@ void patch()
 
 		const char *splash = "00000000.256";
 		Patch(0x004603BB + 1, splash); // WinMain()
+	}
+
+	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
+	{
+		Patch(0x01088B94, &INI::_parseRealBuildTime);
+		Patch(0x01088BA4, &INI::_parseIntBuildCost);
+		Patch(0x01091254, &INI::_parseRealBuildTime);
+		Patch(0x01091234, &INI::_parseUnsignedShortBuildCost);
+		Patch(0x01091194, &INI::_parseRealShroudClearingRange);
+	}
+
+	if (get_private_profile_bool("xp_map", FALSE))
+	{
+		Patch(0x010EAB5C, &INI::_parseIntExperienceAward);
 	}
 }
 }
