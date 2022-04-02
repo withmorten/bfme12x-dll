@@ -40,8 +40,6 @@ void init_console()
 	freopen("conin$", "r", stdin);
 	freopen("conout$", "w", stdout);
 	freopen("conout$", "w", stderr);
-
-	printf("AllocConsole\n");
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
@@ -49,7 +47,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 	if (fdwReason == DLL_PROCESS_ATTACH)
 	{
 		init_private_profile();
-		if (get_private_profile_bool("AllocConsole", FALSE)) init_console();
+		if (stristr(GetCommandLine(), "-console") || get_private_profile_bool("AllocConsole", FALSE)) init_console();
 
 		patch();
 	}

@@ -467,13 +467,6 @@ void patch()
 		// disable desync for some args
 		Nop(0x007BA029, 7); // -noaudio
 		Nop(0x007B9FF0, 7); // -noMusic
-
-		// required for -disableSkirmishAI
-		Patch(0x00C13E24, &SkirmishAIManager::_update);
-
-		// required for -disableWOTRAI
-		InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
-		InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
 	}
 
 	// disable WinVerifyTrust check, fixes random version
@@ -557,9 +550,21 @@ void patch()
 		g_bDisableSkirmishAI = true;
 	}
 
+	// required for no_skirmish_ai and -disableSkirmishAI
+	Patch(0x00C13E24, &SkirmishAIManager::_update);
+
 	if (get_private_profile_bool("no_wotr_ai", FALSE))
 	{
 		g_bDisableWOTRAI = true;
+	}
+
+	// required for no_wotr_ai and -disableWOTRAI
+	InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
+	InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
+
+	if (get_private_profile_bool("edit_system_cah", FALSE))
+	{
+		g_bEditSystemCreateAHero = true;
 	}
 
 	if (get_private_profile_bool("fix_wotr", FALSE))
