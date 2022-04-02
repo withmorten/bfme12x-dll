@@ -358,7 +358,7 @@ extern bool &g_bEditSystemCreateAHero;
 
 struct AsciiString
 {
-	void *_;
+	void *base;
 
 	const char *str() { XCALL(0x004021D7); }
 	void set(const char *str) { XCALL(0x004050E6); }
@@ -367,14 +367,14 @@ struct AsciiString
 
 struct UnicodeString
 {
-	void *_;
+	void *base;
 
 	const wchar_t *str() { XCALL(0x004021E7); }
 	void set(const wchar_t *str) { XCALL(0x0040514E); }
 	int compare(const wchar_t *str) { XCALL(0x00406628); }
 };
 
-bool s_bDisableSkirmishAI;
+bool g_bDisableSkirmishAI;
 
 struct SkirmishAIManager
 {
@@ -382,11 +382,11 @@ struct SkirmishAIManager
 
 	void _update()
 	{
-		if (!s_bDisableSkirmishAI) update();
+		if (!g_bDisableSkirmishAI) update();
 	}
 };
 
-bool s_bDisableWOTRAI;
+bool g_bDisableWOTRAI;
 
 struct LivingWorldPlayer
 {
@@ -395,7 +395,7 @@ struct LivingWorldPlayer
 
 	void _SetAI()
 	{
-		if (s_bDisableWOTRAI) SetDumb();
+		if (g_bDisableWOTRAI) SetDumb();
 		else SetAI();
 	}
 };
@@ -495,6 +495,53 @@ struct StringTable
 		if (success) _fix();
 
 		return success;
+	}
+};
+
+struct INI
+{
+	static void parseReal(INI *ini, void *obj, void *out, const void *null) { XCALL(0x0042ED00); }
+	static void parseInt(INI *ini, void *obj, void *out, const void *null) { XCALL(0x0042EC5E); }
+	static void parseUnsignedShort(INI *ini, void *obj, void *out, const void *null) { XCALL(0x0042EC11); }
+
+	static void _parseRealBuildTime(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseReal(ini, obj, out, null);
+
+		float val = 5.0f;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseIntBuildCost(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseInt(ini, obj, out, null);
+
+		int val = 10;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseUnsignedShortBuildCost(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseUnsignedShort(ini, obj, out, null);
+
+		unsigned short val = 10;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseRealShroudClearingRange(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseReal(ini, obj, out, null);
+
+		float val = 999999.0f;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseIntExperienceAward(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseInt(ini, obj, out, null);
+
+		int val = 0x10000;
+		memcpy(out, &val, sizeof(val));
 	}
 };
 
@@ -668,13 +715,13 @@ int parseLWTurbo(char **argv, int argc) { XCALL(0x007BA77C); }
 int parseSkipMapUnroll(char **argv, int argc) { XCALL(0x007B9F6E); }
 int parseDisableSkirmishAI(char **argv, int argc)
 {
-	s_bDisableSkirmishAI = true;
+	g_bDisableSkirmishAI = true;
 
 	return 1;
 }
 int parseDisableWOTRAI(char **argv, int argc)
 {
-	s_bDisableWOTRAI = true;
+	g_bDisableWOTRAI = true;
 
 	return 1;
 }
@@ -823,6 +870,30 @@ void patch()
 		// StringTable::init()
 		InjectHook(0x006E7DBB, &StringTable::_readSTR);
 		InjectHook(0x006E7DCF, &StringTable::_readCSF);
+	}
+
+	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
+	{
+		Patch(0x00C1082C, &INI::_parseRealBuildTime);
+		Patch(0x00C1083C, &INI::_parseIntBuildCost);
+		Patch(0x00DA404C, &INI::_parseRealBuildTime);
+		Patch(0x00DA402C, &INI::_parseUnsignedShortBuildCost);
+		Patch(0x00DA3F1C, &INI::_parseRealShroudClearingRange);
+	}
+
+	if (get_private_profile_bool("xp_map", FALSE))
+	{
+		Patch(0x00C11C04, &INI::_parseIntExperienceAward);
+	}
+
+	if (get_private_profile_bool("no_skirmish_ai", FALSE))
+	{
+		g_bDisableSkirmishAI = true;
+	}
+
+	if (get_private_profile_bool("no_wotr_ai", FALSE))
+	{
+		g_bDisableWOTRAI = true;
 	}
 
 	if (get_private_profile_bool("fix_wotr", FALSE))
