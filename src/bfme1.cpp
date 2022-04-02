@@ -20,7 +20,9 @@ struct INI
 	{
 		parseReal(ini, obj, out, null);
 
-		float val = 5.0f;
+		float val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 5.0f) val = 5.0f;
 		memcpy(out, &val, sizeof(val));
 	}
 
@@ -28,7 +30,9 @@ struct INI
 	{
 		parseInt(ini, obj, out, null);
 
-		int val = 10;
+		int val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 10) val = 10;
 		memcpy(out, &val, sizeof(val));
 	}
 
@@ -36,7 +40,19 @@ struct INI
 	{
 		parseUnsignedShort(ini, obj, out, null);
 
-		unsigned short val = 10;
+		unsigned short val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 10) val = 10;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseRealRebuildTimeSeconds(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseReal(ini, obj, out, null);
+
+		float val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 5.0f) val = 5.0f;
 		memcpy(out, &val, sizeof(val));
 	}
 
@@ -299,6 +315,7 @@ void patch()
 		Patch(0x01088BA4, &INI::_parseIntBuildCost);
 		Patch(0x01091254, &INI::_parseRealBuildTime);
 		Patch(0x01091234, &INI::_parseUnsignedShortBuildCost);
+		Patch(0x010A4524, &INI::_parseRealRebuildTimeSeconds);
 		Patch(0x01091194, &INI::_parseRealShroudClearingRange);
 	}
 

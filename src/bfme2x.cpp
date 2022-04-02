@@ -35,6 +35,7 @@ struct UnicodeString
 };
 
 bool g_bDisableSkirmishAI;
+int g_nIgnoreTicks;
 
 struct SkirmishAIManager
 {
@@ -43,6 +44,21 @@ struct SkirmishAIManager
 	void _update()
 	{
 		if (!g_bDisableSkirmishAI) update();
+	}
+
+	void _update_ignore_ticks()
+	{
+		if (!g_bDisableSkirmishAI)
+		{
+			static int ticks = 0;
+
+			if (ticks++ == g_nIgnoreTicks)
+			{
+				ticks = 0;
+
+				_update();
+			}
+		}
 	}
 };
 
@@ -92,7 +108,7 @@ struct StringTable
 	bool readSTR(char *strFile) { XCALL(0x006E6E69); }
 	bool readCSF(char *csfFile) { XCALL(0x006E6C82); }
 
-	void _fix()
+	void _fix_good_and_evil()
 	{
 		Entry *good_campaign_entry = NULL;
 		Entry *evil_campaign_entry = NULL;
@@ -143,7 +159,7 @@ struct StringTable
 	{
 		bool success = readSTR(strFile);
 
-		if (success) _fix();
+		if (success) _fix_good_and_evil();
 
 		return success;
 	}
@@ -152,7 +168,7 @@ struct StringTable
 	{
 		bool success = readCSF(csfFile);
 
-		if (success) _fix();
+		if (success) _fix_good_and_evil();
 
 		return success;
 	}
@@ -168,7 +184,9 @@ struct INI
 	{
 		parseReal(ini, obj, out, null);
 
-		float val = 5.0f;
+		float val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 5.0f) val = 5.0f;
 		memcpy(out, &val, sizeof(val));
 	}
 
@@ -176,7 +194,9 @@ struct INI
 	{
 		parseInt(ini, obj, out, null);
 
-		int val = 10;
+		int val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 10) val = 10;
 		memcpy(out, &val, sizeof(val));
 	}
 
@@ -184,7 +204,19 @@ struct INI
 	{
 		parseUnsignedShort(ini, obj, out, null);
 
-		unsigned short val = 10;
+		unsigned short val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 10) val = 10;
+		memcpy(out, &val, sizeof(val));
+	}
+
+	static void _parseRealRebuildTimeSeconds(INI *ini, void *obj, void *out, const void *null)
+	{
+		parseReal(ini, obj, out, null);
+
+		float val;
+		memcpy(&val, out, sizeof(val));
+		if (val > 5.0f) val = 5.0f;
 		memcpy(out, &val, sizeof(val));
 	}
 
@@ -520,6 +552,23 @@ void patch()
 		Patch(0x006430A2 + 2, 0xAF2); // GlobalData::GlobalData()
 	}
 
+	if (get_private_profile_bool("no_skirmish_ai", FALSE))
+	{
+		g_bDisableSkirmishAI = true;
+	}
+
+	// required for no_skirmish_ai and -disableSkirmishAI
+	Patch(0x00C13E24, &SkirmishAIManager::_update);
+
+	if (get_private_profile_bool("no_wotr_ai", FALSE))
+	{
+		g_bDisableWOTRAI = true;
+	}
+
+	// required for no_wotr_ai and -disableWOTRAI
+	InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
+	InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
+
 	if (get_private_profile_bool("bfme2_campaign", FALSE))
 	{
 		// the only difference between this and SubsystemLegendExpansion1 is LinearCampaign vs LinearCampaignExpansion1
@@ -540,30 +589,19 @@ void patch()
 		Patch(0x00C1083C, &INI::_parseIntBuildCost);
 		Patch(0x00DA404C, &INI::_parseRealBuildTime);
 		Patch(0x00DA402C, &INI::_parseUnsignedShortBuildCost);
+		Patch(0x00C56B2C, &INI::_parseRealRebuildTimeSeconds);
 		Patch(0x00DA3F1C, &INI::_parseRealShroudClearingRange);
+
+		g_nIgnoreTicks = get_private_profile_int("ignore_ticks", 4);
+		if (g_nIgnoreTicks <= 0) g_nIgnoreTicks = 1;
+
+		Patch(0x00C13E24, &SkirmishAIManager::_update_ignore_ticks);
 	}
 
 	if (get_private_profile_bool("xp_map", FALSE))
 	{
 		Patch(0x00C11C04, &INI::_parseIntExperienceAward);
 	}
-
-	if (get_private_profile_bool("no_skirmish_ai", FALSE))
-	{
-		g_bDisableSkirmishAI = true;
-	}
-
-	// required for no_skirmish_ai and -disableSkirmishAI
-	Patch(0x00C13E24, &SkirmishAIManager::_update);
-
-	if (get_private_profile_bool("no_wotr_ai", FALSE))
-	{
-		g_bDisableWOTRAI = true;
-	}
-
-	// required for no_wotr_ai and -disableWOTRAI
-	InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
-	InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
 
 	if (get_private_profile_bool("edit_system_cah", FALSE))
 	{
