@@ -285,8 +285,7 @@ void patch()
 	PatchBytes(0x00502240, sub_502240);
 
 	// disable langdata.dat loading
-	const char *langdata = "censored.dat";
-	PatchBytes(0x010F5D64, (unsigned char *)langdata, strlen(langdata) + 1);
+	PatchString(0x010F5D64, "censored.dat");
 
 	if (get_private_profile_bool("no_logo", TRUE))
 	{
@@ -305,8 +304,7 @@ void patch()
 		Patch(0x0045F337 + 4, 640);
 		Patch(0x0045F33F + 4, 480);
 
-		const char *splash = "00000000.256";
-		Patch(0x004603BB + 1, splash); // WinMain()
+		Patch(0x004603BB + 1, "00000000.256"); // WinMain()
 	}
 
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))

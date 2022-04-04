@@ -35,7 +35,7 @@ void patch()
 
 	// disable langdata.dat loading
 	const char *langdata = "censored.dat";
-	PatchBytes(0x00C19734, (unsigned char *)langdata, strlen(langdata) + 1);
+	PatchString(0x00C19734, "censored.dat");
 
 	if (get_private_profile_bool("no_logo", TRUE))
 	{

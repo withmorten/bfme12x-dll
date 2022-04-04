@@ -144,18 +144,65 @@ struct StringTable
 			}
 		}
 
-		if (good_campaign_entry && expansion1_campaign_entry)
+		if (evil_campaign_entry && expansion1_campaign_entry)
 		{
-			expansion1_campaign_entry->value.set(good_campaign_entry->value.str());
+			expansion1_campaign_entry->value.set(evil_campaign_entry->value.str());
 		}
 
-		if (evil_campaign_entry && bonus_campaign_entry)
+		if (good_campaign_entry && bonus_campaign_entry)
 		{
-			bonus_campaign_entry->value.set(evil_campaign_entry->value.str());
+			bonus_campaign_entry->value.set(good_campaign_entry->value.str());
 		}
 	}
 
-	bool _readSTR(char *strFile)
+	void _fix_expansion1_and_bonus()
+	{
+		Entry *good_campaign_entry = NULL;
+		Entry *evil_campaign_entry = NULL;
+		Entry *expansion1_campaign_entry = NULL;
+		Entry *bonus_campaign_entry = NULL;
+
+		for (size_t i = 0; i < num_entries; i++)
+		{
+			Entry *entry = &entries[i];
+
+			if (!entry->label.compare("APT:GoodCampaign"))
+			{
+				good_campaign_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("APT:EvilCampaign"))
+			{
+				evil_campaign_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("APT:Expansion1Campaign"))
+			{
+				expansion1_campaign_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("APT:BonusCampaign"))
+			{
+				bonus_campaign_entry = entry;
+				continue;
+			}
+		}
+
+		if (evil_campaign_entry && expansion1_campaign_entry)
+		{
+			evil_campaign_entry->value.set(expansion1_campaign_entry->value.str());
+		}
+
+		if (good_campaign_entry && bonus_campaign_entry)
+		{
+			good_campaign_entry->value.set(bonus_campaign_entry->value.str());
+		}
+	}
+
+	bool _readSTR_fix_good_and_evil(char *strFile)
 	{
 		bool success = readSTR(strFile);
 
@@ -164,11 +211,29 @@ struct StringTable
 		return success;
 	}
 
-	bool _readCSF(char *csfFile)
+	bool _readCSF_fix_good_and_evil(char *csfFile)
 	{
 		bool success = readCSF(csfFile);
 
 		if (success) _fix_good_and_evil();
+
+		return success;
+	}
+
+	bool _readSTR_fix_expansion1_and_bonus(char *strFile)
+	{
+		bool success = readSTR(strFile);
+
+		if (success) _fix_expansion1_and_bonus();
+
+		return success;
+	}
+
+	bool _readCSF_fix_expansion1_and_bonus(char *csfFile)
+	{
+		bool success = readCSF(csfFile);
+
+		if (success) _fix_expansion1_and_bonus();
 
 		return success;
 	}
@@ -236,6 +301,27 @@ struct INI
 		memcpy(out, &val, sizeof(val));
 	}
 };
+
+bool LoadSingleAssetDat(FILE *f, int a2) { XCALL(0x0052C577); }
+
+FILE *_fopen(const char *Filename, const char *Mode) { DSCALL(0x00BD0554); }
+int _fclose(FILE *File) { DSCALL(0x00BD0560); }
+
+bool _LoadSingleAssetDat(FILE *f, int a2)
+{
+	FILE *f2 = _fopen("asset2.dat", "rb");
+
+	if (f2)
+	{
+		bool rv = LoadSingleAssetDat(f2, a2);
+
+		_fclose(f2);
+
+		if (!rv) return false;
+	}
+
+	return LoadSingleAssetDat(f, a2);
+}
 
 #ifdef DEBUG_CRASHFIX
 FILE *crashfix_log;
@@ -529,12 +615,10 @@ void patch()
 	}
 
 	// disable langdata.dat loading
-	const char *langdata = "censored.dat";
-	PatchBytes(0x00C2FE80, (unsigned char *)langdata, strlen(langdata) + 1);
+	PatchString(0x00C2FE80, "censored.dat");
 
 	// don't check for bfme2 game.dat (so it can be renamed to RTS.exe)
-	const char *LotRIcon = "LotRIcon.exe";
-	Patch(0x00635FA4 + 1, LotRIcon);
+	Patch(0x00635FA4 + 1, "LotRIcon.exe");
 
 	if (!is_bfme2x_202())
 	{
@@ -550,6 +634,11 @@ void patch()
 	{
 		Patch(0x0064309B + 2, 0xAF3); // GlobalData::GlobalData()
 		Patch(0x006430A2 + 2, 0xAF2); // GlobalData::GlobalData()
+	}
+
+	if (get_private_profile_bool("asset2_dat", TRUE))
+	{
+		InjectHook(0x0052CC5B, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
 
 	if (get_private_profile_bool("no_skirmish_ai", FALSE))
@@ -571,16 +660,25 @@ void patch()
 
 	if (get_private_profile_bool("bfme2_campaign", FALSE))
 	{
-		// the only difference between this and SubsystemLegendExpansion1 is LinearCampaign vs LinearCampaignExpansion1
-		const char *SubsystemLegend = "Data\\INI\\Default\\SubsystemLegend.ini";
-		Patch(0x0063AF50 + 1, SubsystemLegend); // GameEngine::init()
+		// the only difference between this and SubsystemLegendExpansion1.ini is LinearCampaign vs LinearCampaignExpansion1
+		Patch(0x0063AF50 + 1, "Data\\INI\\Default\\SubsystemLegend.ini"); // GameEngine::init()
 
-		Patch(0x0091BE8C + 1, 0x00C7CEB4); // change ANGMAR_CAMPAIGN to GOOD_CAMPAIGN
-		Patch(0x0091BF0E + 1, 0x0091BDCA); // change ANGMAR_BONUS_CAMPAIGN to EVIL_CAMPAIGN
+		Patch(0x0091BE8C + 1, 0x0091BDCA); // change ANGMAR_CAMPAIGN to EVIL_CAMPAIGN
+		Patch(0x0091BE85 + 1, 0x0091BDCA); // change ANGMAR_CAMPAIGN_DEMO to EVIL_CAMPAIGN
+		Patch(0x0091BF0E + 1, 0x00C7CEB4); // change ANGMAR_BONUS_CAMPAIGN to GOOD_CAMPAIGN
 
 		// StringTable::init()
-		InjectHook(0x006E7DBB, &StringTable::_readSTR);
-		InjectHook(0x006E7DCF, &StringTable::_readCSF);
+		InjectHook(0x006E7DBB, &StringTable::_readSTR_fix_good_and_evil);
+		InjectHook(0x006E7DCF, &StringTable::_readCSF_fix_good_and_evil);
+	}
+	else
+	{
+		Patch(0x0091BE29 + 1, 0x00C7CEC4); // change GOOD_CAMPAIGN to ANGMAR_CAMPAIGN
+		Patch(0x0091BDCA + 1, 0x00C7CEEC); // change EVIL_CAMPAIGN to ANGMAR_BONUS_CAMPAIGN
+
+		// StringTable::init()
+		InjectHook(0x006E7DBB, &StringTable::_readSTR_fix_expansion1_and_bonus);
+		InjectHook(0x006E7DCF, &StringTable::_readCSF_fix_expansion1_and_bonus);
 	}
 
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
@@ -592,10 +690,10 @@ void patch()
 		Patch(0x00C56B2C, &INI::_parseRealRebuildTimeSeconds);
 		Patch(0x00DA3F1C, &INI::_parseRealShroudClearingRange);
 
-		g_nIgnoreTicks = get_private_profile_int("ignore_ticks", 4);
+		g_nIgnoreTicks = get_private_profile_int("ignore_ticks", 8);
 		if (g_nIgnoreTicks <= 0) g_nIgnoreTicks = 1;
 
-		Patch(0x00C13E24, &SkirmishAIManager::_update_ignore_ticks);
+		if (g_nIgnoreTicks != 1) Patch(0x00C13E24, &SkirmishAIManager::_update_ignore_ticks);
 	}
 
 	if (get_private_profile_bool("xp_map", FALSE))
@@ -606,6 +704,12 @@ void patch()
 	if (get_private_profile_bool("edit_system_cah", FALSE))
 	{
 		g_bEditSystemCreateAHero = true;
+	}
+
+	if (get_private_profile_bool("no_promo", TRUE))
+	{
+		BYTE sub_6E5E72[] = { 0x31, 0xC0, 0x40, 0xC2, 0x04, 0x00 };
+		PatchBytes(0x006E5E72, sub_6E5E72);
 	}
 
 	if (get_private_profile_bool("fix_wotr", FALSE))
@@ -632,8 +736,34 @@ void patch()
 
 namespace wb2x
 {
+bool LoadSingleAssetDat(FILE *f, int a2) { XCALL(0x009D7270); }
+
+FILE *_fopen(const char *Filename, const char *Mode) { DSCALL(0x022F51A0); }
+int _fclose(FILE *File) { DSCALL(0x022F51A8); }
+
+bool _LoadSingleAssetDat(FILE *f, int a2)
+{
+	FILE *f2 = _fopen("asset2.dat", "rb");
+
+	if (f2)
+	{
+		bool rv = LoadSingleAssetDat(f2, a2);
+
+		_fclose(f2);
+
+		if (!rv) return false;
+	}
+
+	return LoadSingleAssetDat(f, a2);
+}
+
 void patch()
 {
+	if (get_private_profile_bool("asset2_dat", TRUE))
+	{
+		InjectHook(0x009D8027, &_LoadSingleAssetDat); // InitializeAssetManager()
+	}
+
 	if (get_private_profile_bool("compression_none_default", TRUE))
 	{
 		Patch(0x006C0240 + 1, 0); // CompressionManager::getPreferredCompression()
@@ -642,9 +772,8 @@ void patch()
 	}
 
 	// don't check for bfme2 game.dat (so it can be renamed to RTS.exe)
-	const char *LotRIcon = "LotRIcon.exe";
-	Patch(0x00CA4889 + 1, LotRIcon);
-	Patch(0x00CA4892 + 1, LotRIcon);
-	Patch(0x00CA48AF + 1, LotRIcon);
+	Patch(0x00CA4889 + 1, "LotRIcon.exe");
+	Patch(0x00CA4892 + 1, "LotRIcon.exe");
+	Patch(0x00CA48AF + 1, "LotRIcon.exe");
 }
 }
