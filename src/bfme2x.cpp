@@ -108,7 +108,7 @@ struct StringTable
 	bool readSTR(char *strFile) { XCALL(0x006E6E69); }
 	bool readCSF(char *csfFile) { XCALL(0x006E6C82); }
 
-	void _fix_good_and_evil()
+	void _fix_expansion1_and_bonus()
 	{
 		Entry *good_campaign_entry = NULL;
 		Entry *evil_campaign_entry = NULL;
@@ -153,71 +153,6 @@ struct StringTable
 		{
 			bonus_campaign_entry->value.set(good_campaign_entry->value.str());
 		}
-	}
-
-	void _fix_expansion1_and_bonus()
-	{
-		Entry *good_campaign_entry = NULL;
-		Entry *evil_campaign_entry = NULL;
-		Entry *expansion1_campaign_entry = NULL;
-		Entry *bonus_campaign_entry = NULL;
-
-		for (size_t i = 0; i < num_entries; i++)
-		{
-			Entry *entry = &entries[i];
-
-			if (!entry->label.compare("APT:GoodCampaign"))
-			{
-				good_campaign_entry = entry;
-				continue;
-			}
-
-			if (!entry->label.compare("APT:EvilCampaign"))
-			{
-				evil_campaign_entry = entry;
-				continue;
-			}
-
-			if (!entry->label.compare("APT:Expansion1Campaign"))
-			{
-				expansion1_campaign_entry = entry;
-				continue;
-			}
-
-			if (!entry->label.compare("APT:BonusCampaign"))
-			{
-				bonus_campaign_entry = entry;
-				continue;
-			}
-		}
-
-		if (evil_campaign_entry && expansion1_campaign_entry)
-		{
-			evil_campaign_entry->value.set(expansion1_campaign_entry->value.str());
-		}
-
-		if (good_campaign_entry && bonus_campaign_entry)
-		{
-			good_campaign_entry->value.set(bonus_campaign_entry->value.str());
-		}
-	}
-
-	bool _readSTR_fix_good_and_evil(char *strFile)
-	{
-		bool success = readSTR(strFile);
-
-		if (success) _fix_good_and_evil();
-
-		return success;
-	}
-
-	bool _readCSF_fix_good_and_evil(char *csfFile)
-	{
-		bool success = readCSF(csfFile);
-
-		if (success) _fix_good_and_evil();
-
-		return success;
 	}
 
 	bool _readSTR_fix_expansion1_and_bonus(char *strFile)
@@ -663,22 +598,19 @@ void patch()
 		// the only difference between this and SubsystemLegendExpansion1.ini is LinearCampaign vs LinearCampaignExpansion1
 		Patch(0x0063AF50 + 1, "Data\\INI\\Default\\SubsystemLegend.ini"); // GameEngine::init()
 
-		Patch(0x0091BE8C + 1, 0x0091BDCA); // change ANGMAR_CAMPAIGN to EVIL_CAMPAIGN
-		Patch(0x0091BE85 + 1, 0x0091BDCA); // change ANGMAR_CAMPAIGN_DEMO to EVIL_CAMPAIGN
-		Patch(0x0091BF0E + 1, 0x00C7CEB4); // change ANGMAR_BONUS_CAMPAIGN to GOOD_CAMPAIGN
+		InjectHook(0x0091C3C9, 0x0091C215); // change ANGMAR_CAMPAIGN to EVIL_CAMPAIGN
+		InjectHook(0x0091C3D7, 0x0091C1C8); // change ANGMAR_BONUS_CAMPAIGN to GOOD_CAMPAIGN
 
-		// StringTable::init()
-		InjectHook(0x006E7DBB, &StringTable::_readSTR_fix_good_and_evil);
-		InjectHook(0x006E7DCF, &StringTable::_readCSF_fix_good_and_evil);
-	}
-	else
-	{
-		Patch(0x0091BE29 + 1, 0x00C7CEC4); // change GOOD_CAMPAIGN to ANGMAR_CAMPAIGN
-		Patch(0x0091BDCA + 1, 0x00C7CEEC); // change EVIL_CAMPAIGN to ANGMAR_BONUS_CAMPAIGN
+		InjectHook(0x0091C3C9, 0x0091C215); // change ANGMAR_CAMPAIGN to EVIL_CAMPAIGN
+		InjectHook(0x0091C2AF, 0x0091C1C8); // change ANGMAR_BONUS_CAMPAIGN to GOOD_CAMPAIGN
 
 		// StringTable::init()
 		InjectHook(0x006E7DBB, &StringTable::_readSTR_fix_expansion1_and_bonus);
 		InjectHook(0x006E7DCF, &StringTable::_readCSF_fix_expansion1_and_bonus);
+
+		// forces Bonus Campaign button to be available
+		BYTE sub_6E5E16[] = { 0xB0, 0x01, 0xC3 };
+		PatchBytes(0x006E5E16, sub_6E5E16);
 	}
 
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
