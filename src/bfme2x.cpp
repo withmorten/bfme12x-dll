@@ -1,6 +1,8 @@
 #include <Windows.h>
 #include <MMSystem.h>
 
+#include <ctime>
+
 #include "patch.h"
 #include "bfme2x.h"
 
@@ -8,6 +10,10 @@
 
 namespace bfme2x
 {
+int GetGameLogicRandomValue(int min, int max, char *file, int line) { XCALL(0x006D328E); }
+
+bool g_bUseRandomValue;
+
 struct GlobalData
 {
 	enum TimeOfDay
@@ -24,7 +30,7 @@ struct GlobalData
 
 	void _setTimeOfDay_forced(TimeOfDay t)
 	{
-		UINT u = get_private_profile_int("force_time_of_day", GlobalData::TimeOfDay::NONE);
+		UINT u = get_private_profile_int("force_time_of_day", NONE);
 
 		if (u >= MORNING && u <= NIGHT)
 		{
@@ -35,6 +41,18 @@ struct GlobalData
 		{
 			setTimeOfDay(t);
 		}
+	}
+
+	void _setTimeOfDay_random(TimeOfDay t)
+	{
+		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
+
+		if (g_bUseRandomValue)
+		{
+			FIELD(TimeOfDay, this, 0x134) = r;
+		}
+
+		setTimeOfDay(FIELD(TimeOfDay, this, 0x134));
 	}
 };
 
@@ -338,7 +356,7 @@ void log_ebx(uint32_t ebx)
 
 	if (crashfix_log)
 	{
-		fprintf(crashfix_log, "time: %08X, ebx: %08X\n", timeGetTime(), ebx);
+		fprintf(crashfix_log, "time: %d, ebx: %08X\n", std::time(nullptr), ebx);
 	}
 }
 #endif
@@ -642,6 +660,14 @@ void patch()
 	// forced_time_of_day
 	InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_forced); // W3DTerrainLogic::loadMap()
 
+	// and override if we want a random one
+	if (get_private_profile_int("random_time_of_day", 0) != 0)
+	{
+		g_bUseRandomValue = get_private_profile_int("random_time_of_day", 0) == 1;
+
+		InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_random); // W3DTerrainLogic::loadMap()
+	}
+
 	if (get_private_profile_bool("asset2_dat", TRUE))
 	{
 		InjectHook(0x0052CC5B, &_LoadSingleAssetDat); // InitializeAssetManager()
@@ -669,6 +695,12 @@ void patch()
 		// forces Bonus Campaign button to be available
 		BYTE sub_6E5E16[] = { 0xB0, 0x01, 0xC3 };
 		PatchBytes(0x006E5E16, sub_6E5E16);
+	}
+
+	if (get_private_profile_bool("no_promo", TRUE) || get_private_profile_bool("bfme2_campaign", FALSE))
+	{
+		BYTE sub_6E5E72[] = { 0x31, 0xC0, 0x40, 0xC2, 0x04, 0x00 };
+		PatchBytes(0x006E5E72, sub_6E5E72);
 	}
 
 	if (get_private_profile_bool("no_skirmish_ai", FALSE))
@@ -707,12 +739,6 @@ void patch()
 	if (get_private_profile_bool("edit_system_cah", FALSE))
 	{
 		g_bEditSystemCreateAHero = true;
-	}
-
-	if (get_private_profile_bool("no_promo", TRUE))
-	{
-		BYTE sub_6E5E72[] = { 0x31, 0xC0, 0x40, 0xC2, 0x04, 0x00 };
-		PatchBytes(0x006E5E72, sub_6E5E72);
 	}
 
 	if (get_private_profile_bool("fix_wotr", FALSE))
