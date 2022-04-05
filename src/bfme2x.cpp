@@ -8,7 +8,36 @@
 
 namespace bfme2x
 {
-struct GlobalData;
+struct GlobalData
+{
+	enum TimeOfDay
+	{
+		NONE,
+		MORNING,
+		AFTERNOON,
+		EVENING,
+		NIGHT,
+		INTERPOLATE,
+	};
+
+	void setTimeOfDay(TimeOfDay t) { XCALL(0x0064193F); }
+
+	void _setTimeOfDay_forced(TimeOfDay t)
+	{
+		UINT u = get_private_profile_int("force_time_of_day", GlobalData::TimeOfDay::NONE);
+
+		if (u >= MORNING && u <= NIGHT)
+		{
+			FIELD(TimeOfDay, this, 0x134) = (TimeOfDay)u;
+			setTimeOfDay(FIELD(TimeOfDay, this, 0x134));
+		}
+		else
+		{
+			setTimeOfDay(t);
+		}
+	}
+};
+
 extern GlobalData *&TheWriteableGlobalData;
 
 extern uint32_t &g_flags;
@@ -110,24 +139,29 @@ struct StringTable
 
 	void _fix_expansion1_and_bonus()
 	{
-		Entry *good_campaign_entry = NULL;
 		Entry *evil_campaign_entry = NULL;
+		Entry *good_campaign_entry = NULL;
 		Entry *expansion1_campaign_entry = NULL;
 		Entry *bonus_campaign_entry = NULL;
+
+		Entry *evil_campaign_tooltip_entry = NULL;
+		Entry *good_campaign_tooltip_entry = NULL;
+		Entry *expansion1_campaign_tooltip_entry = NULL;
+		Entry *bonus_campaign_tooltip_entry = NULL;
 
 		for (size_t i = 0; i < num_entries; i++)
 		{
 			Entry *entry = &entries[i];
 
-			if (!entry->label.compare("APT:GoodCampaign"))
-			{
-				good_campaign_entry = entry;
-				continue;
-			}
-
 			if (!entry->label.compare("APT:EvilCampaign"))
 			{
 				evil_campaign_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("APT:GoodCampaign"))
+			{
+				good_campaign_entry = entry;
 				continue;
 			}
 
@@ -142,6 +176,30 @@ struct StringTable
 				bonus_campaign_entry = entry;
 				continue;
 			}
+
+			if (!entry->label.compare("ToolTip:OpeningMenu/EvilCampaignButton"))
+			{
+				evil_campaign_tooltip_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("ToolTip:OpeningMenu/GoodCampaignButton"))
+			{
+				good_campaign_tooltip_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("ToolTip:OpeningMenu/Expansion1Button"))
+			{
+				expansion1_campaign_tooltip_entry = entry;
+				continue;
+			}
+
+			if (!entry->label.compare("ToolTip:OpeningMenu/BonusButton"))
+			{
+				bonus_campaign_tooltip_entry = entry;
+				continue;
+			}
 		}
 
 		if (evil_campaign_entry && expansion1_campaign_entry)
@@ -152,6 +210,16 @@ struct StringTable
 		if (good_campaign_entry && bonus_campaign_entry)
 		{
 			bonus_campaign_entry->value.set(good_campaign_entry->value.str());
+		}
+
+		if (evil_campaign_tooltip_entry && expansion1_campaign_tooltip_entry)
+		{
+			expansion1_campaign_tooltip_entry->value.set(evil_campaign_tooltip_entry->value.str());
+		}
+
+		if (good_campaign_tooltip_entry && bonus_campaign_tooltip_entry)
+		{
+			bonus_campaign_tooltip_entry->value.set(good_campaign_tooltip_entry->value.str());
 		}
 	}
 
@@ -571,22 +639,12 @@ void patch()
 		Patch(0x006430A2 + 2, 0xAF2); // GlobalData::GlobalData()
 	}
 
+	// forced_time_of_day
+	InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_forced); // W3DTerrainLogic::loadMap()
+
 	if (get_private_profile_bool("asset2_dat", TRUE))
 	{
 		InjectHook(0x0052CC5B, &_LoadSingleAssetDat); // InitializeAssetManager()
-	}
-
-	if (get_private_profile_bool("no_skirmish_ai", FALSE))
-	{
-		g_bDisableSkirmishAI = true;
-	}
-
-	// required for no_skirmish_ai and -disableSkirmishAI
-	Patch(0x00C13E24, &SkirmishAIManager::_update);
-
-	if (get_private_profile_bool("no_wotr_ai", FALSE))
-	{
-		g_bDisableWOTRAI = true;
 	}
 
 	// required for no_wotr_ai and -disableWOTRAI
@@ -611,6 +669,19 @@ void patch()
 		// forces Bonus Campaign button to be available
 		BYTE sub_6E5E16[] = { 0xB0, 0x01, 0xC3 };
 		PatchBytes(0x006E5E16, sub_6E5E16);
+	}
+
+	if (get_private_profile_bool("no_skirmish_ai", FALSE))
+	{
+		g_bDisableSkirmishAI = true;
+	}
+
+	// required for no_skirmish_ai and -disableSkirmishAI
+	Patch(0x00C13E24, &SkirmishAIManager::_update);
+
+	if (get_private_profile_bool("no_wotr_ai", FALSE))
+	{
+		g_bDisableWOTRAI = true;
 	}
 
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
