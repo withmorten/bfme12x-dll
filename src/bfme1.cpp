@@ -73,6 +73,27 @@ struct INI
 	}
 };
 
+bool LoadSingleAssetDat(FILE *f, int a2) { XCALL(0x00D38150); }
+
+FILE *_fopen(const char *Filename, const char *Mode) { DSCALL(0x013593BC); }
+int _fclose(FILE *File) { DSCALL(0x013593A0); }
+
+bool _LoadSingleAssetDat(FILE *f, int a2)
+{
+	FILE *f2 = _fopen("asset2.dat", "rb");
+
+	if (f2)
+	{
+		bool rv = LoadSingleAssetDat(f2, a2);
+
+		_fclose(f2);
+
+		if (!rv) return false;
+	}
+
+	return LoadSingleAssetDat(f, a2);
+}
+
 int parseNoShellMap(char **argv, int argc) { XCALL(0x004428FC); }
 int parseMod(char **argv, int argc) { XCALL(0x00440070); }
 int parseNoAudio(char **argv, int argc) { XCALL(0x00419CEF); }
@@ -253,12 +274,39 @@ ret_false:;
 
 void patch()
 {
+	if (get_private_profile_bool("must_have", TRUE))
+	{
+		// disable needing the launcher
+		Nop(0x00460598, 5 + 2 + 2 + 5 + 2);
+		PatchByte(0x004605A8, 0xEB);
+
+		// fix auto defeat
+		BYTE sub_502240[] = { 0xB0, 0x01, 0xC3 };
+		PatchBytes(0x00502240, sub_502240);
+
+		// disable langdata.dat loading
+		PatchString(0x010F5D64, "censored.dat");
+
+		// actually use the bFirewallEnabled field
+		InjectHook(0x0091DB4B, &fix_bFirewallEnabled, PATCH_JUMP);
+		Nop(0x0091DB4B + 5, 1);
+		PatchByte(0x0091DB66 + 1, 0x84);
+	}
+
 	if (get_private_profile_bool("params", TRUE))
 	{
 		// commandline arguments
 		Patch(0x00463BE9 + 2, &params->name); // parseCommandLine()
 		Patch(0x00463C27 + 2, &params->name); // parseCommandLine()
 		Patch(0x00463C4B + 2, &params->parse); // parseCommandLine()
+
+		// game only has 1 byte for sizeof, so we need more, thanks to the incremental build there's padding right before
+		Nop(0x00463BD8, 2);
+		Nop(0x00463BDA, 3);
+		PatchByte(0x00463BDA + 3, 0x81);
+		PatchByte(0x00463BDA + 4, 0xFB);
+		Patch(0x00463BDA + 5, sizeof(params));
+		Patch(0x00463C68 + 2, -142 - 3);
 
 		// disable desync for some args
 		Nop(0x00460A60, 5); // -noaudio
@@ -268,36 +316,6 @@ void patch()
 		Nop(0x00460A00, 7); // -noMusic
 	}
 
-	// game only has 1 byte for sizeof, so we need more, thanks to the incremental build there's padding right before
-	Nop(0x00463BD8, 2);
-	Nop(0x00463BDA, 3);
-	PatchByte(0x00463BDA + 3, 0x81);
-	PatchByte(0x00463BDA + 4, 0xFB);
-	Patch(0x00463BDA + 5, sizeof(params));
-	Patch(0x00463C68 + 2, -142 - 3);
-
-	// disable needing the launcher
-	Nop(0x00460598, 5 + 2 + 2 + 5 + 2);
-	PatchByte(0x004605A8, 0xEB);
-
-	// fix auto defeat
-	BYTE sub_502240[] = { 0xB0, 0x01, 0xC3 };
-	PatchBytes(0x00502240, sub_502240);
-
-	// disable langdata.dat loading
-	PatchString(0x010F5D64, "censored.dat");
-
-	if (get_private_profile_bool("no_logo", TRUE))
-	{
-		Patch(0x0048537E + 2, 0xBB7); // GlobalData::GlobalData()
-		Patch(0x00485388 + 2, 0xBB6); // GlobalData::GlobalData()
-	}
-
-	// actually use the bFirewallEnabled field
-	InjectHook(0x0091DB4B, &fix_bFirewallEnabled, PATCH_JUMP);
-	Nop(0x0091DB4B + 5, 1);
-	PatchByte(0x0091DB66 + 1, 0x84);
-
 	// doesnt't get centered properly, so don't enable this
 	if (get_private_profile_bool("alt_splash_screen", FALSE))
 	{
@@ -305,6 +323,23 @@ void patch()
 		Patch(0x0045F33F + 4, 480);
 
 		Patch(0x004603BB + 1, "00000000.256"); // WinMain()
+	}
+
+	if (get_private_profile_bool("no_logo", TRUE))
+	{
+		Patch(0x0048537E + 2, 0xBB7); // GlobalData::GlobalData()
+		Patch(0x00485388 + 2, 0xBB6); // GlobalData::GlobalData()
+	}
+
+	if (get_private_profile_bool("disable_asset_building", TRUE))
+	{
+		PatchJump(0x00D3864F, 0x00D3870E);
+		Nop(0x00D3864F + 5);
+	}
+
+	if (get_private_profile_bool("asset2_dat", TRUE))
+	{
+		InjectHook(0x00D3898C, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
 
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
@@ -328,6 +363,13 @@ namespace wb1
 {
 void patch()
 {
+	if (get_private_profile_bool("must_have", TRUE))
+	{
+		// get rid of eula popup
+		Nop(0x004F73CA, 6);
+		Nop(0x004F73D4, 5 + 3 + 6);
+	}
+
 	if (get_private_profile_bool("compression_none_default", TRUE))
 	{
 		Patch(0x00508480 + 1, 0); // CompressionManager::getPreferredCompression()
@@ -335,9 +377,5 @@ void patch()
 		Nop(0x004815E1, 6 + 1 + 5); // MapSettings::OnInitDialog()
 		Nop(0x004815F4, 5 + 1 + 2 + 5 + 7 + 2); // MapSettings::OnInitDialog()
 	}
-
-	// get rid of eula popup
-	Nop(0x004F73CA, 6);
-	Nop(0x004F73D4, 5 + 3 + 6);
 }
 }

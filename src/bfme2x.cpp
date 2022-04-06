@@ -631,6 +631,26 @@ ASM(fix_parseCommandLine)
 
 void patch()
 {
+	if (get_private_profile_bool("must_have", TRUE))
+	{
+		// disable WinVerifyTrust check, fixes random version
+		Nop(0x006444A1, 6 + 2 + 6 + 2);
+
+		// disable needing the launcher
+		Nop(0x00402C6E, 5 + 2 + 2 + 5 + 2);
+		PatchByte(0x00402C7E, 0xEB);
+
+		// fix auto defeat
+		BYTE sub_63F7D8[] = { 0xB0, 0x01, 0xC3 };
+		PatchBytes(0x0063F7D8, sub_63F7D8);
+
+		// disable langdata.dat loading
+		PatchString(0x00C2FE80, "censored.dat");
+
+		// don't check for bfme2 game.dat (so it can be renamed to RTS.exe)
+		Patch(0x00635FA4 + 1, "LotRIcon.exe");
+	}
+
 	if (get_private_profile_bool("params", TRUE))
 	{
 		// commandline arguments
@@ -642,17 +662,6 @@ void patch()
 		Nop(0x007BA029, 7); // -noaudio
 		Nop(0x007B9FF0, 7); // -noMusic
 	}
-
-	// disable WinVerifyTrust check, fixes random version
-	Nop(0x006444A1, 6 + 2 + 6 + 2);
-
-	// disable needing the launcher
-	Nop(0x00402C6E, 5 + 2 + 2 + 5 + 2);
-	PatchByte(0x00402C7E, 0xEB);
-
-	// fix auto defeat
-	BYTE sub_63F7D8[] = { 0xB0, 0x01, 0xC3 };
-	PatchBytes(0x0063F7D8, sub_63F7D8);
 
 	// 0x009B6318 - fix crash when defeating enemy - apparently AIWallTactic related - AIWallTactic got added in rotwk ...
 	// 0x01542190 (function, not potential crash addr) in WorldBuilder, but unfortunately no debug asserts there
@@ -671,12 +680,6 @@ void patch()
 		}
 	}
 
-	// disable langdata.dat loading
-	PatchString(0x00C2FE80, "censored.dat");
-
-	// don't check for bfme2 game.dat (so it can be renamed to RTS.exe)
-	Patch(0x00635FA4 + 1, "LotRIcon.exe");
-
 	if (!is_bfme2x_202())
 	{
 		// unknown gamereplays patches, probably random number generation related
@@ -694,7 +697,9 @@ void patch()
 	}
 
 	// forced_time_of_day
-	InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_forced); // W3DTerrainLogic::loadMap()
+	{
+		InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_forced); // W3DTerrainLogic::loadMap()
+	}
 
 	// and override if we want a random one
 	if (get_private_profile_int("random_time_of_day", 0) != 0)
@@ -704,21 +709,34 @@ void patch()
 		InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_random); // W3DTerrainLogic::loadMap()
 	}
 
+	if (get_private_profile_bool("disable_asset_building", TRUE))
+	{
+		PatchByte(0x00D9B2A0, false); // assetCacheBuilder.exe
+		PatchByte(0x00D9B2A1, false); // TextureAssetBuilder.exe
+		PatchByte(0x00D9B2A2, false); // ShaderAssetBuilder.exe
+	}
+
 	if (get_private_profile_bool("asset2_dat", TRUE))
 	{
 		InjectHook(0x0052CC5B, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
 
-	WIN32_FIND_DATA info;
-	HANDLE handle = FindFirstFile("EnglishSplash.jpg", &info);
-
-	if (info.nFileSizeLow == 98654) // this means we are using the bfme2 splash screen (English)
 	{
-		InjectHook(0x0084856C, &Version::_getGameColor); // AptLanLobby::ShowSortedGameList()
-		InjectHook(0x009A8CEE, &Version::_getGameColor); // AptOnlineCustomMatch::InsertGameInListbox()
-	}
+		WIN32_FIND_DATA info;
+		HANDLE handle = FindFirstFile("EnglishSplash.jpg", &info);
 
-	FindClose(handle);
+		if (info.nFileSizeLow == 98654) // this means we are using the bfme2 splash screen (English)
+		{
+			InjectHook(0x0084856C, &Version::_getGameColor); // AptLanLobby::ShowSortedGameList()
+			InjectHook(0x009A8CEE, &Version::_getGameColor); // AptOnlineCustomMatch::InsertGameInListbox()
+
+			// disable WOTR and CreateAHero promo screens
+			BYTE sub_6E5E72[] = { 0x31, 0xC0, 0x40, 0xC2, 0x04, 0x00 };
+			PatchBytes(0x006E5E72, sub_6E5E72);
+		}
+
+		FindClose(handle);
+	}
 
 	if (get_private_profile_bool("bfme2_campaign", FALSE))
 	{
@@ -740,19 +758,15 @@ void patch()
 		PatchBytes(0x006E5E16, sub_6E5E16);
 	}
 
-	if (get_private_profile_bool("no_promo", TRUE))
-	{
-		BYTE sub_6E5E72[] = { 0x31, 0xC0, 0x40, 0xC2, 0x04, 0x00 };
-		PatchBytes(0x006E5E72, sub_6E5E72);
-	}
-
 	if (get_private_profile_bool("no_skirmish_ai", FALSE))
 	{
 		g_bDisableSkirmishAI = true;
 	}
 
 	// required for no_skirmish_ai and -disableSkirmishAI
-	Patch(0x00C13E24, &SkirmishAIManager::_update);
+	{
+		Patch(0x00C13E24, &SkirmishAIManager::_update);
+	}
 
 	if (get_private_profile_bool("no_wotr_ai", FALSE))
 	{
@@ -760,8 +774,10 @@ void patch()
 	}
 
 	// required for no_wotr_ai and -disableWOTRAI
-	InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
-	InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
+	{
+		InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
+		InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
+	}
 
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
 	{
@@ -835,6 +851,14 @@ bool _LoadSingleAssetDat(FILE *f, int a2)
 
 void patch()
 {
+	if (get_private_profile_bool("must_have", TRUE))
+	{
+		// don't check for bfme2 game.dat (so it can be renamed to RTS.exe)
+		Patch(0x00CA4889 + 1, "LotRIcon.exe");
+		Patch(0x00CA4892 + 1, "LotRIcon.exe");
+		Patch(0x00CA48AF + 1, "LotRIcon.exe");
+	}
+
 	if (get_private_profile_bool("asset2_dat", TRUE))
 	{
 		InjectHook(0x009D8027, &_LoadSingleAssetDat); // InitializeAssetManager()
@@ -846,10 +870,5 @@ void patch()
 
 		Nop(0x0056BBD6, 3 + 1 + 5 + 5 + 1 + 3 + 5 + 3 + 4 + 2 + 2); // MapSettings::OnInitDialog()
 	}
-
-	// don't check for bfme2 game.dat (so it can be renamed to RTS.exe)
-	Patch(0x00CA4889 + 1, "LotRIcon.exe");
-	Patch(0x00CA4892 + 1, "LotRIcon.exe");
-	Patch(0x00CA48AF + 1, "LotRIcon.exe");
 }
 }

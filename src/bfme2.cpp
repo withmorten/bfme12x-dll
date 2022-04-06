@@ -22,20 +22,23 @@ struct LivingWorldLogic
 
 void patch()
 {
-	// disable WinVerifyTrust check, fixes random version
-	Nop(0x00637E0A, 6 + 2 + 6 + 2);
+	if (get_private_profile_bool("must_have", TRUE))
+	{
+		// disable WinVerifyTrust check, fixes random version
+		Nop(0x00637E0A, 6 + 2 + 6 + 2);
 
-	// disable needing the launcher
-	Nop(0x004030B0, 5 + 2 + 2 + 5 + 2);
-	PatchByte(0x004030C0, 0xEB);
+		// disable needing the launcher
+		Nop(0x004030B0, 5 + 2 + 2 + 5 + 2);
+		PatchByte(0x004030C0, 0xEB);
 
-	// fix auto defeat
-	BYTE sub_632D38[] = { 0xB0, 0x01, 0xC3 };
-	PatchBytes(0x00632D38, sub_632D38);
+		// fix auto defeat
+		BYTE sub_632D38[] = { 0xB0, 0x01, 0xC3 };
+		PatchBytes(0x00632D38, sub_632D38);
 
-	// disable langdata.dat loading
-	const char *langdata = "censored.dat";
-	PatchString(0x00C19734, "censored.dat");
+		// disable langdata.dat loading
+		const char *langdata = "censored.dat";
+		PatchString(0x00C19734, "censored.dat");
+	}
 
 	if (get_private_profile_bool("no_logo", TRUE))
 	{
