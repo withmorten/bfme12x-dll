@@ -317,7 +317,7 @@ void patch()
 		Patch(0x01091194, &INI::_parseRealShroudClearingRange);
 	}
 
-	if (get_private_profile_bool("xp_map", FALSE))
+	if (get_private_profile_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
 	{
 		Patch(0x010EAB5C, &INI::_parseIntExperienceAward);
 	}

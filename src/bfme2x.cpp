@@ -673,10 +673,6 @@ void patch()
 		InjectHook(0x0052CC5B, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
 
-	// required for no_wotr_ai and -disableWOTRAI
-	InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
-	InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
-
 	if (get_private_profile_bool("bfme2_campaign", FALSE))
 	{
 		// the only difference between this and SubsystemLegendExpansion1.ini is LinearCampaign vs LinearCampaignExpansion1
@@ -697,7 +693,7 @@ void patch()
 		PatchBytes(0x006E5E16, sub_6E5E16);
 	}
 
-	if (get_private_profile_bool("no_promo", TRUE) || get_private_profile_bool("bfme2_campaign", FALSE))
+	if (get_private_profile_bool("no_promo", TRUE))
 	{
 		BYTE sub_6E5E72[] = { 0x31, 0xC0, 0x40, 0xC2, 0x04, 0x00 };
 		PatchBytes(0x006E5E72, sub_6E5E72);
@@ -716,6 +712,10 @@ void patch()
 		g_bDisableWOTRAI = true;
 	}
 
+	// required for no_wotr_ai and -disableWOTRAI
+	InjectHook(0x006B5EF1, &LivingWorldPlayer::_SetAI);
+	InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
+
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
 	{
 		Patch(0x00C1082C, &INI::_parseRealBuildTime);
@@ -731,7 +731,7 @@ void patch()
 		if (g_nIgnoreTicks != 1) Patch(0x00C13E24, &SkirmishAIManager::_update_ignore_ticks);
 	}
 
-	if (get_private_profile_bool("xp_map", FALSE))
+	if (get_private_profile_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
 	{
 		Patch(0x00C11C04, &INI::_parseIntExperienceAward);
 	}
