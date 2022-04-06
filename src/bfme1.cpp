@@ -12,64 +12,64 @@ extern bool &g_bHouseColor;
 
 struct INI
 {
-	static void parseReal(INI *ini, void *obj, void *out, const void *null) { XCALL(0x00C52B20); }
-	static void parseInt(INI *ini, void *obj, void *out, const void *null) { XCALL(0x00C52A60); }
-	static void parseUnsignedShort(INI *ini, void *obj, void *out, const void *null) { XCALL(0x00C529E0); }
+	static void parseReal(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x00C52B20); }
+	static void parseInt(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x00C52A60); }
+	static void parseUnsignedShort(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x00C529E0); }
 
-	static void _parseRealBuildTime(INI *ini, void *obj, void *out, const void *null)
+	static void _parseRealBuildTime(INI *ini, void *formal, void *store, const void *user_data)
 	{
-		parseReal(ini, obj, out, null);
+		parseReal(ini, formal, store, user_data);
 
 		float val;
-		memcpy(&val, out, sizeof(val));
+		memcpy(&val, store, sizeof(val));
 		if (val > 5.0f) val = 5.0f;
-		memcpy(out, &val, sizeof(val));
+		memcpy(store, &val, sizeof(val));
 	}
 
-	static void _parseIntBuildCost(INI *ini, void *obj, void *out, const void *null)
+	static void _parseIntBuildCost(INI *ini, void *formal, void *store, const void *user_data)
 	{
-		parseInt(ini, obj, out, null);
+		parseInt(ini, formal, store, user_data);
 
 		int val;
-		memcpy(&val, out, sizeof(val));
+		memcpy(&val, store, sizeof(val));
 		if (val > 10) val = 10;
-		memcpy(out, &val, sizeof(val));
+		memcpy(store, &val, sizeof(val));
 	}
 
-	static void _parseUnsignedShortBuildCost(INI *ini, void *obj, void *out, const void *null)
+	static void _parseUnsignedShortBuildCost(INI *ini, void *formal, void *store, const void *user_data)
 	{
-		parseUnsignedShort(ini, obj, out, null);
+		parseUnsignedShort(ini, formal, store, user_data);
 
 		unsigned short val;
-		memcpy(&val, out, sizeof(val));
+		memcpy(&val, store, sizeof(val));
 		if (val > 10) val = 10;
-		memcpy(out, &val, sizeof(val));
+		memcpy(store, &val, sizeof(val));
 	}
 
-	static void _parseRealRebuildTimeSeconds(INI *ini, void *obj, void *out, const void *null)
+	static void _parseRealRebuildTimeSeconds(INI *ini, void *formal, void *store, const void *user_data)
 	{
-		parseReal(ini, obj, out, null);
+		parseReal(ini, formal, store, user_data);
 
 		float val;
-		memcpy(&val, out, sizeof(val));
+		memcpy(&val, store, sizeof(val));
 		if (val > 5.0f) val = 5.0f;
-		memcpy(out, &val, sizeof(val));
+		memcpy(store, &val, sizeof(val));
 	}
 
-	static void _parseRealShroudClearingRange(INI *ini, void *obj, void *out, const void *null)
+	static void _parseRealShroudClearingRange(INI *ini, void *formal, void *store, const void *user_data)
 	{
-		parseReal(ini, obj, out, null);
+		parseReal(ini, formal, store, user_data);
 
 		float val = 999999.0f;
-		memcpy(out, &val, sizeof(val));
+		memcpy(store, &val, sizeof(val));
 	}
 
-	static void _parseIntExperienceAward(INI *ini, void *obj, void *out, const void *null)
+	static void _parseIntExperienceAward(INI *ini, void *formal, void *store, const void *user_data)
 	{
-		parseInt(ini, obj, out, null);
+		parseInt(ini, formal, store, user_data);
 
 		int val = 0x10000;
-		memcpy(out, &val, sizeof(val));
+		memcpy(store, &val, sizeof(val));
 	}
 };
 
