@@ -148,10 +148,17 @@ struct StringTable
 		UnicodeString value;
 	};
 
+	struct SortedEntry
+	{
+		Entry *label;
+		Entry *value;
+	};
+
 	size_t num_entries;
 	Entry *entries;
-	Entry *sorted_entries;
+	SortedEntry *sorted_entries;
 
+	bool init(char *strFile, char *csfFile, bool &success) { XCALL(0x006E7D9E); }
 	bool readSTR(char *strFile) { XCALL(0x006E6E69); }
 	bool readCSF(char *csfFile) { XCALL(0x006E6C82); }
 
@@ -241,22 +248,22 @@ struct StringTable
 		}
 	}
 
-	bool _readSTR_fix_expansion1_and_bonus(char *strFile)
+	bool _readSTR(char *strFile)
 	{
-		bool success = readSTR(strFile);
+		bool b = readSTR(strFile);
 
-		if (success) _fix_expansion1_and_bonus();
+		if (b) _fix_expansion1_and_bonus();
 
-		return success;
+		return b;
 	}
 
-	bool _readCSF_fix_expansion1_and_bonus(char *csfFile)
+	bool _readCSF(char *csfFile)
 	{
-		bool success = readCSF(csfFile);
+		bool b = readCSF(csfFile);
 
-		if (success) _fix_expansion1_and_bonus();
+		if (b) _fix_expansion1_and_bonus();
 
-		return success;
+		return b;
 	}
 };
 
@@ -343,6 +350,34 @@ bool _LoadSingleAssetDat(FILE *f, int a2)
 
 	return LoadSingleAssetDat(f, a2);
 }
+
+struct Version
+{
+	int version1;
+	int version2;
+	int version3;
+	int version4;
+	AsciiString id;
+	AsciiString machine;
+	AsciiString user;
+	AsciiString guid;
+	AsciiString time;
+	AsciiString date;
+	AsciiString config;
+	bool b;
+
+	unsigned int _getGameColor(Version *other, bool force_wrong_version)
+	{
+		bool same_version = false;
+
+		if (!force_wrong_version && version1 == other->version1 && version2 == other->version2 && version3 == other->version3 && version4 == other->version4)
+		{
+			same_version = true;
+		}
+
+		return same_version ? 0xFF7AAB44 : 0xFF3D5522;
+	}
+};
 
 #ifdef DEBUG_CRASHFIX
 FILE *crashfix_log;
@@ -673,6 +708,17 @@ void patch()
 		InjectHook(0x0052CC5B, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
 
+	WIN32_FIND_DATA info;
+	HANDLE handle = FindFirstFile("EnglishSplash.jpg", &info);
+
+	if (info.nFileSizeLow == 98654) // this means we are using the bfme2 splash screen (English)
+	{
+		InjectHook(0x0084856C, &Version::_getGameColor); // AptLanLobby::ShowSortedGameList()
+		InjectHook(0x009A8CEE, &Version::_getGameColor); // AptOnlineCustomMatch::InsertGameInListbox()
+	}
+
+	FindClose(handle);
+
 	if (get_private_profile_bool("bfme2_campaign", FALSE))
 	{
 		// the only difference between this and SubsystemLegendExpansion1.ini is LinearCampaign vs LinearCampaignExpansion1
@@ -685,8 +731,8 @@ void patch()
 		InjectHook(0x0091C2AF, 0x0091C1C8); // change ANGMAR_BONUS_CAMPAIGN to GOOD_CAMPAIGN
 
 		// StringTable::init()
-		InjectHook(0x006E7DBB, &StringTable::_readSTR_fix_expansion1_and_bonus);
-		InjectHook(0x006E7DCF, &StringTable::_readCSF_fix_expansion1_and_bonus);
+		InjectHook(0x006E7DBB, &StringTable::_readSTR);
+		InjectHook(0x006E7DCF, &StringTable::_readCSF);
 
 		// forces Bonus Campaign button to be available
 		BYTE sub_6E5E16[] = { 0xB0, 0x01, 0xC3 };
