@@ -3,7 +3,52 @@
 
 namespace bfme1
 {
-struct GlobalData;
+int GetGameLogicRandomValue(int min, int max, char *file, int line) { XCALL(0x00401BAE); }
+
+bool g_bUseRandomValue;
+
+struct GlobalData
+{
+	enum TimeOfDay
+	{
+		NONE,
+		MORNING,
+		AFTERNOON,
+		EVENING,
+		NIGHT,
+		INTERPOLATE,
+	};
+
+	void setTimeOfDay(TimeOfDay t) { XCALL(0x0040BA64); }
+
+	void _setTimeOfDay_forced(TimeOfDay t)
+	{
+		UINT u = get_private_profile_int("force_time_of_day", NONE);
+
+		if (u >= MORNING && u <= NIGHT)
+		{
+			FIELD(TimeOfDay, this, 0x218) = (TimeOfDay)u;
+			setTimeOfDay(FIELD(TimeOfDay, this, 0x218));
+		}
+		else
+		{
+			setTimeOfDay(t);
+		}
+	}
+
+	void _setTimeOfDay_random(TimeOfDay t)
+	{
+		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
+
+		if (g_bUseRandomValue)
+		{
+			FIELD(TimeOfDay, this, 0x218) = r;
+		}
+
+		setTimeOfDay(FIELD(TimeOfDay, this, 0x218));
+	}
+};
+
 extern GlobalData *&TheWriteableGlobalData;
 
 extern uint32_t &g_flags;
@@ -329,6 +374,19 @@ void patch()
 	{
 		Patch(0x0048537E + 2, 0xBB7); // GlobalData::GlobalData()
 		Patch(0x00485388 + 2, 0xBB6); // GlobalData::GlobalData()
+	}
+
+	// forced_time_of_day
+	{
+		InjectHook(0x00ABED80, &GlobalData::_setTimeOfDay_forced); // W3DTerrainLogic::loadMap()
+	}
+
+	// and override if we want a random one
+	if (get_private_profile_int("random_time_of_day", 0) != 0)
+	{
+		g_bUseRandomValue = get_private_profile_int("random_time_of_day", 0) == 1;
+
+		InjectHook(0x00ABED80, &GlobalData::_setTimeOfDay_random); // W3DTerrainLogic::loadMap()
 	}
 
 	if (get_private_profile_bool("disable_asset_building", TRUE))

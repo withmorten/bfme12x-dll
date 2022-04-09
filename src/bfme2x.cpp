@@ -65,20 +65,30 @@ extern bool &g_bEditSystemCreateAHero;
 
 struct AsciiString
 {
-	void *base;
+	void *data;
 
+	AsciiString() { data = NULL; }
+	~AsciiString() { releaseBuffer(); }
+
+	void releaseBuffer() { XCALL(0x00435D50); }
 	const char *str() { XCALL(0x004021D7); }
 	void set(const char *str) { XCALL(0x004050E6); }
 	int compare(const char *str) { XCALL(0x00406585); }
+	void format(const char *fmt, ...) { XCALL(0x00437A90); }
 };
 
 struct UnicodeString
 {
-	void *base;
+	void *data;
 
+	UnicodeString() { data = NULL; }
+	~UnicodeString() { releaseBuffer(); }
+
+	void releaseBuffer() { XCALL(0x004367B0); }
 	const wchar_t *str() { XCALL(0x004021E7); }
 	void set(const wchar_t *str) { XCALL(0x0040514E); }
 	int compare(const wchar_t *str) { XCALL(0x00406628); }
+	void format(const wchar_t *fmt, ...) { XCALL(0x00ADF750); }
 };
 
 bool g_bDisableSkirmishAI;
@@ -329,6 +339,76 @@ struct INI
 		memcpy(store, &val, sizeof(val));
 	}
 };
+
+ASM(fix_handicap_list_init_value)
+{
+	__asm
+	{
+		lea esi, [ecx+eax*4+0x354]
+		mov edi, -100
+	}
+
+	RET(0x00840BB8);
+}
+
+const wchar_t *handicap_string_fmt = L"+%d%%";
+
+ASM(fix_handicap_list_string)
+{
+	__asm
+	{
+		cmp edi, 0
+		jg positive
+		jmp negative
+
+	positive:
+		push handicap_string_fmt
+		jmp locret
+
+	negative:
+		push 0x00C53FB8
+		jmp locret
+	}
+
+locret:;
+	RET(0x00840BE8);
+}
+
+struct Object
+{
+	bool addAttributeModifierToPool(AsciiString &, int) { XCALL(0x0068F1A8); }
+
+	void _fixHandicap(int handicap)
+	{
+		if (handicap != 0 && !(-handicap % 5))
+		{
+			if (handicap >= -100 && handicap < 0)
+			{
+				AsciiString str;
+				str.format("HandicapPercent%d", -handicap);
+				addAttributeModifierToPool(str, -1);
+			}
+			else if (handicap > 0 && handicap <= 100)
+			{
+				AsciiString str;
+				str.format("BonusPercent%d", handicap);
+				addAttributeModifierToPool(str, -1);
+			}
+		}
+	}
+};
+
+ASM(fix_handicap_callFixHandicap)
+{
+	__asm
+	{
+		push eax
+		mov ecx, esi
+		call Object::_fixHandicap
+	}
+
+	RET(0x00694130);
+}
 
 bool LoadSingleAssetDat(FILE *f, int a2) { XCALL(0x0052C577); }
 
@@ -663,12 +743,28 @@ void patch()
 		Nop(0x007B9FF0, 7); // -noMusic
 	}
 
+	if (get_private_profile_bool("handicap", TRUE))
+	{
+		// AptMpGameSetup::PopulateHandicapCombo()
+		// enables handicap from -100% to 100% (Bonus instead of Handicap)
+		// first we fix the dropdown list
+		InjectHook(0x00840BAF, &fix_handicap_list_init_value, PATCH_JUMP); // init to -100
+		PatchByte(0x00840C22 + 1, 0xC7); // += 5 instead of -=5
+		PatchByte(0x00840C25 + 2, 100); // check <= 100
+		PatchByte(0x00840C28, 0x7E); // check <= 100
+		InjectHook(0x00840BE3, &fix_handicap_list_string, PATCH_JUMP);
+
+		// Object::initObject()
+		// then we fix the parsing
+		InjectHook(0x006940E4, &fix_handicap_callFixHandicap, PATCH_JUMP);
+	}
+
 	// 0x009B6318 - fix crash when defeating enemy - apparently AIWallTactic related - AIWallTactic got added in rotwk ...
 	// 0x01542190 (function, not potential crash addr) in WorldBuilder, but unfortunately no debug asserts there
 	// is being called by AIWallTactic::update() (deduced from other vtable placements)
-	if (get_private_profile_int("crashfix", 1) != 0)
+	if (get_private_profile_int("aiwalltactic_crashfix", 1) != 0)
 	{
-		if (get_private_profile_int("crashfix", 1) == 1)
+		if (get_private_profile_int("aiwalltactic_crashfix", 1) == 1)
 		{
 			BYTE sub_9B62F6[] = { 0x30, 0xC0, 0xC3 };
 			PatchBytes(0x009B62F6, sub_9B62F6);
@@ -680,12 +776,13 @@ void patch()
 		}
 	}
 
-	if (!is_bfme2x_202())
+	if (get_private_profile_bool("gamereplays_rand", TRUE) && !is_bfme2x_202())
 	{
-		// unknown gamereplays patches, probably random number generation related
+		// called by i.e. GetGameLogicRandomValue, seems to be a custom rand function
 		BYTE sub_6D315D[] = { 0x53, 0x8B, 0x01, 0x31, 0xD2, 0xBB, 0x05, 0x84, 0x08, 0x08, 0xF7, 0xE3, 0x83, 0xC0, 0x01, 0x89, 0x01, 0x31, 0xD0, 0x5B, 0xC3 };
 		PatchBytes(0x006D315D, sub_6D315D);
 
+		// called by InitRandom, inits a seed array used by above function
 		BYTE sub_6D31D4[] = { 0x53, 0x52, 0xBB, 0xED, 0xFF, 0xFF, 0x7F, 0xF7, 0xE3, 0x89, 0x01, 0x89, 0x41, 0x04, 0x89, 0x41, 0x08, 0x89, 0x41, 0x0C, 0x89, 0x41, 0x10, 0x89, 0x41, 0x14, 0x5A, 0x5B, 0xC3 };
 		PatchBytes(0x006D31D4, sub_6D31D4);
 	}
@@ -788,7 +885,7 @@ void patch()
 		Patch(0x00C56B2C, &INI::_parseRealRebuildTimeSeconds);
 		Patch(0x00DA3F1C, &INI::_parseRealShroudClearingRange);
 
-		g_nIgnoreTicks = get_private_profile_int("ignore_ticks", 8);
+		g_nIgnoreTicks = get_private_profile_int("ignore_ticks", 60);
 		if (g_nIgnoreTicks <= 0) g_nIgnoreTicks = 1;
 
 		if (g_nIgnoreTicks != 1) Patch(0x00C13E24, &SkirmishAIManager::_update_ignore_ticks);
