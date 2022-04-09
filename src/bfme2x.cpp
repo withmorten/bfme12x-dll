@@ -45,6 +45,7 @@ struct GlobalData
 
 	void _setTimeOfDay_random(TimeOfDay t)
 	{
+		// going by worldbuilder asserts, you shouldn't call this outside of an actual gamelogic phase ... but eh
 		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
 
 		if (g_bUseRandomValue)
@@ -446,6 +447,7 @@ struct Version
 	AsciiString config;
 	bool b;
 
+	// in this function we only return the bfme2 green colors, not the rotwk blue colors, but they are originally already present in bfme2
 	unsigned int _getGameColor(Version *other, bool force_wrong_version)
 	{
 		bool same_version = false;

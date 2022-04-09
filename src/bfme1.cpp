@@ -38,6 +38,7 @@ struct GlobalData
 
 	void _setTimeOfDay_random(TimeOfDay t)
 	{
+		// going by worldbuilder asserts, you shouldn't call this outside of an actual gamelogic phase ... but eh
 		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
 
 		if (g_bUseRandomValue)
