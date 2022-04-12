@@ -12,8 +12,6 @@ namespace bfme2x
 {
 int GetGameLogicRandomValue(int min, int max, char *file, int line) { XCALL(0x006D328E); }
 
-bool g_bUseRandomValue;
-
 struct GlobalData
 {
 	enum TimeOfDay
@@ -48,7 +46,7 @@ struct GlobalData
 		// going by worldbuilder asserts, you shouldn't call this outside of an actual gamelogic phase ... but eh
 		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
 
-		if (g_bUseRandomValue)
+		if (get_private_profile_int("random_time_of_day", 0) == 1)
 		{
 			FIELD(TimeOfDay, this, 0x134) = r;
 		}
@@ -57,7 +55,7 @@ struct GlobalData
 	}
 };
 
-extern GlobalData *&TheWriteableGlobalData;
+extern GlobalData *&TheWritableGlobalData;
 
 extern uint32_t &g_flags;
 
@@ -283,6 +281,7 @@ struct INI
 	static void parseReal(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042ED00); }
 	static void parseInt(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042EC5E); }
 	static void parseUnsignedShort(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042EC11); }
+	static void parsePercentToReal(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042EEFA); }
 
 	static void _parseRealBuildTime(INI *ini, void *formal, void *store, const void *user_data)
 	{
@@ -337,6 +336,22 @@ struct INI
 		parseInt(ini, formal, store, user_data);
 
 		int val = 0x10000;
+		memcpy(store, &val, sizeof(val));
+	}
+
+	static void _parsePercentToRealBuildCostReduction(INI *ini, void *formal, void *store, const void *user_data)
+	{
+		parsePercentToReal(ini, formal, store, user_data);
+
+		float val = get_private_profile_float("brutal_difficulty_build_cost_reduction", "15") / 100.0f;
+		memcpy(store, &val, sizeof(val));
+	}
+
+	static void _parsePercentToRealBuildTimeReduction(INI *ini, void *formal, void *store, const void *user_data)
+	{
+		parsePercentToReal(ini, formal, store, user_data);
+
+		float val = get_private_profile_float("brutal_difficulty_build_time_reduction", "15") / 100.0f;
 		memcpy(store, &val, sizeof(val));
 	}
 };
@@ -409,6 +424,73 @@ ASM(fix_handicap_callFixHandicap)
 	}
 
 	RET(0x00694130);
+}
+
+ASM(fix_handicap_LANAPI__OnGameOptions)
+{
+	__asm
+	{
+		test eax, eax
+		jnz loc_64A44B
+
+		cmp edi, -100
+		jl loc_64A3F7
+
+		cmp edi, 100
+		jg loc_64A3F7
+	}
+
+	RET(0x0064A43A);
+
+loc_64A3F7:;
+	RET(0x0064A3F7);
+
+loc_64A44B:;
+	RET(0x0064A44B);
+}
+
+ASM(fix_handicap_AptOnlineCustomMatch__ProcessGameSpyResponses)
+{
+	__asm
+	{
+		test eax, eax
+		jnz loc_9ADBF9
+
+		cmp edi, -100
+		jl loc_9ADA43
+
+		cmp edi, 100
+		jg loc_9ADA43
+	}
+
+	RET(0x009ADBE1);
+
+loc_9ADA43:;
+	RET(0x009ADA43);
+
+loc_9ADBF9:;
+	RET(0x009ADBF9);
+}
+
+int _atoi(char *) { DSCALL(0x00BD0628); }
+
+ASM(fix_handicap_ParseAsciiStringToGameInfo)
+{
+	__asm
+	{
+		call _atoi
+		pop ecx
+		cmp eax, -100
+		jl loc_8036B3
+
+		cmp eax, 100
+		jg loc_8036B3
+	}
+
+	RET(0x00803627);
+
+loc_8036B3:;
+	RET(0x008036B3);
 }
 
 bool LoadSingleAssetDat(FILE *f, int a2) { XCALL(0x0052C577); }
@@ -524,9 +606,9 @@ int parseResumeGame(char **argv, int argc) { XCALL(0x007BACE3); }
 int parseNoMusic(char **argv, int argc) { XCALL(0x007B9FEB); }
 int parseNoViewLimit(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xC67) = false;
+		FIELD(bool, TheWritableGlobalData, 0xC67) = false;
 	}
 
 	return 1;
@@ -534,29 +616,29 @@ int parseNoViewLimit(char **argv, int argc)
 int parseHugeDump(char **argv, int argc) { XCALL(0x007BA3E0); }
 int parseSelectTheUnselectable(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xC6C) = false;
+		FIELD(bool, TheWritableGlobalData, 0xC6C) = false;
 	}
 
 	return 1;
 }
 int parseNoShroud(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xC69) = false;
+		FIELD(bool, TheWritableGlobalData, 0xC69) = false;
 	}
 
 	return 1;
 }
 int parseShellMap(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
 		if (argc > 1)
 		{
-			(FIELD(AsciiString, TheWriteableGlobalData, 0xAEC)).set(argv[1]);
+			(FIELD(AsciiString, TheWritableGlobalData, 0xAEC)).set(argv[1]);
 		}
 	}
 
@@ -567,10 +649,10 @@ int parseBuildMapCache(char **argv, int argc) { XCALL(0x007BA252); }
 int parseWinCursors(char **argv, int argc) { XCALL(0x007BA2A2); }
 int parseNoLogo(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xAF2) = false;
-		FIELD(bool, TheWriteableGlobalData, 0xAF3) = true;
+		FIELD(bool, TheWritableGlobalData, 0xAF2) = false;
+		FIELD(bool, TheWritableGlobalData, 0xAF3) = true;
 	}
 
 	return 1;
@@ -581,9 +663,9 @@ int parseQuickStart(char **argv, int argc)
 	parseNoShellMap(argv, argc);
 	parseNoShellAnim(argv, argc);
 
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0x1110) = true;
+		FIELD(bool, TheWritableGlobalData, 0x1110) = true;
 	}
 
 	return 1;
@@ -597,9 +679,9 @@ int parseNoHouseColor(char **argv, int argc)
 }
 int parseNoMuteOnFocusLoss(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0x9C5) = false;
+		FIELD(bool, TheWritableGlobalData, 0x9C5) = false;
 	}
 
 	return 1;
@@ -608,7 +690,7 @@ int parseStartingMoney(char **argv, int argc)
 {
 	if (argc > 1)
 	{
-		FIELD(int, TheWriteableGlobalData, 0x1104) = atoi(argv[1]);
+		FIELD(int, TheWritableGlobalData, 0x1104) = atoi(argv[1]);
 
 		g_flags |= 0x10;
 	}
@@ -619,9 +701,9 @@ int parseFastGamePlay(char **argv, int argc)
 {
 	g_flags |= 0x8;
 
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0x1100) = true;
+		FIELD(bool, TheWritableGlobalData, 0x1100) = true;
 	}
 
 	return 1;
@@ -745,20 +827,34 @@ void patch()
 		Nop(0x007B9FF0, 7); // -noMusic
 	}
 
+	// enables handicap from -100% to +100% (Bonus instead of Handicap)
 	if (get_private_profile_bool("handicap", TRUE))
 	{
-		// AptMpGameSetup::PopulateHandicapCombo()
-		// enables handicap from -100% to 100% (Bonus instead of Handicap)
 		// first we fix the dropdown list
+		// AptMpGameSetup::PopulateHandicapCombo()
 		InjectHook(0x00840BAF, &fix_handicap_list_init_value, PATCH_JUMP); // init to -100
 		PatchByte(0x00840C22 + 1, 0xC7); // += 5 instead of -=5
 		PatchByte(0x00840C25 + 2, 100); // check <= 100
 		PatchByte(0x00840C28, 0x7E); // check <= 100
 		InjectHook(0x00840BE3, &fix_handicap_list_string, PATCH_JUMP);
 
-		// Object::initObject()
 		// then we fix the parsing
+		// Object::initObject()
 		InjectHook(0x006940E4, &fix_handicap_callFixHandicap, PATCH_JUMP);
+
+		// then we fix the network transmission of this value, 4 functions check that it's in range of -100 to 0 ...
+		// LANAPI::OnGameOptions()
+		InjectHook(0x0064A42D, &fix_handicap_LANAPI__OnGameOptions, PATCH_JUMP);
+
+		// AptOnlineCustomMatch::ProcessGameSpyResponses()
+		InjectHook(0x009ADBCC, &fix_handicap_AptOnlineCustomMatch__ProcessGameSpyResponses, PATCH_JUMP);
+
+		// ByteBufferToGameInfo()
+		PatchByte(0x0084B57E + 3, 100);
+		PatchByte(0x0084B857 + 3, 100);
+
+		// ParseAsciiStringToGameInfo()
+		InjectHook(0x0080360F, &fix_handicap_ParseAsciiStringToGameInfo, PATCH_JUMP);
 	}
 
 	// 0x009B6318 - fix crash when defeating enemy - apparently AIWallTactic related - AIWallTactic got added in rotwk ...
@@ -803,8 +899,6 @@ void patch()
 	// and override if we want a random one
 	if (get_private_profile_int("random_time_of_day", 0) != 0)
 	{
-		g_bUseRandomValue = get_private_profile_int("random_time_of_day", 0) == 1;
-
 		InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_random); // W3DTerrainLogic::loadMap()
 	}
 
@@ -878,6 +972,12 @@ void patch()
 		InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
 	}
 
+	if (get_private_profile_bool("brutal_difficulty_cheats", FALSE))
+	{
+		Patch(0x00C13948, &INI::_parsePercentToRealBuildCostReduction);
+		Patch(0x00C13958, &INI::_parsePercentToRealBuildTimeReduction);
+	}
+
 	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
 	{
 		Patch(0x00C1082C, &INI::_parseRealBuildTime);
@@ -896,6 +996,11 @@ void patch()
 	if (get_private_profile_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
 	{
 		Patch(0x00C11C04, &INI::_parseIntExperienceAward);
+	}
+
+	if (get_private_profile_bool("no_shroud", FALSE) || stristr(GetCommandLine(), "-noshroud"))
+	{
+		Patch(0x00DA3F1C, &INI::_parseRealShroudClearingRange);
 	}
 
 	if (get_private_profile_bool("edit_system_cah", FALSE))

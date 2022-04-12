@@ -5,8 +5,6 @@ namespace bfme1
 {
 int GetGameLogicRandomValue(int min, int max, char *file, int line) { XCALL(0x00401BAE); }
 
-bool g_bUseRandomValue;
-
 struct GlobalData
 {
 	enum TimeOfDay
@@ -41,7 +39,7 @@ struct GlobalData
 		// going by worldbuilder asserts, you shouldn't call this outside of an actual gamelogic phase ... but eh
 		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
 
-		if (g_bUseRandomValue)
+		if (get_private_profile_int("random_time_of_day", 0) == 1)
 		{
 			FIELD(TimeOfDay, this, 0x218) = r;
 		}
@@ -50,7 +48,7 @@ struct GlobalData
 	}
 };
 
-extern GlobalData *&TheWriteableGlobalData;
+extern GlobalData *&TheWritableGlobalData;
 
 extern uint32_t &g_flags;
 
@@ -155,18 +153,18 @@ int parseNoWatchdog(char **argv, int argc) { XCALL(0x0041FF9B); }
 int parseNoMusic(char **argv, int argc) { XCALL(0x0043F6E3); }
 int parseNoMuteOnFocusLoss(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xA94) = false;
+		FIELD(bool, TheWritableGlobalData, 0xA94) = false;
 	}
 
 	return 1;
 }
 int parseNoViewLimit(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xCF2) = false;
+		FIELD(bool, TheWritableGlobalData, 0xCF2) = false;
 	}
 
 	return 1;
@@ -174,18 +172,18 @@ int parseNoViewLimit(char **argv, int argc)
 int parseHugeDump(char **argv, int argc) { XCALL(0x004043BD); }
 int parseSelectTheUnselectable(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xCF9) = false;
+		FIELD(bool, TheWritableGlobalData, 0xCF9) = false;
 	}
 
 	return 1;
 }
 int parseNoShroud(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xCF4) = false;
+		FIELD(bool, TheWritableGlobalData, 0xCF4) = false;
 	}
 
 	return 1;
@@ -196,10 +194,10 @@ int parseBuildMapCache(char **argv, int argc) { XCALL(0x00438E56); }
 int parseWinCursors(char **argv, int argc) { XCALL(0x0044335B); }
 int parseNoLogo(char **argv, int argc)
 {
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0xBB6) = false;
-		FIELD(bool, TheWriteableGlobalData, 0xBB7) = true;
+		FIELD(bool, TheWritableGlobalData, 0xBB6) = false;
+		FIELD(bool, TheWritableGlobalData, 0xBB7) = true;
 	}
 
 	return 1;
@@ -210,9 +208,9 @@ int parseQuickStart(char **argv, int argc)
 	parseNoShellMap(argv, argc);
 	parseNoShellAnim(argv, argc);
 
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0x11FC) = true;
+		FIELD(bool, TheWritableGlobalData, 0x11FC) = true;
 	}
 
 	return 1;
@@ -229,7 +227,7 @@ int parseStartingMoney(char **argv, int argc)
 {
 	if (argc > 1)
 	{
-		FIELD(int, TheWriteableGlobalData, 0x11F0) = atoi(argv[1]);
+		FIELD(int, TheWritableGlobalData, 0x11F0) = atoi(argv[1]);
 
 		g_flags |= 0x10;
 	}
@@ -240,9 +238,9 @@ int parseFastGamePlay(char **argv, int argc)
 {
 	g_flags |= 0x8;
 
-	if (TheWriteableGlobalData)
+	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWriteableGlobalData, 0x11EC) = true;
+		FIELD(bool, TheWritableGlobalData, 0x11EC) = true;
 	}
 
 	return 1;
@@ -385,8 +383,6 @@ void patch()
 	// and override if we want a random one
 	if (get_private_profile_int("random_time_of_day", 0) != 0)
 	{
-		g_bUseRandomValue = get_private_profile_int("random_time_of_day", 0) == 1;
-
 		InjectHook(0x00ABED80, &GlobalData::_setTimeOfDay_random); // W3DTerrainLogic::loadMap()
 	}
 
@@ -414,6 +410,11 @@ void patch()
 	if (get_private_profile_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
 	{
 		Patch(0x010EAB5C, &INI::_parseIntExperienceAward);
+	}
+
+	if (get_private_profile_bool("no_shroud", FALSE) || stristr(GetCommandLine(), "-noshroud"))
+	{
+		Patch(0x01091194, &INI::_parseRealShroudClearingRange);
 	}
 }
 }
