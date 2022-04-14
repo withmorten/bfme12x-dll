@@ -6,8 +6,6 @@
 #include "patch.h"
 #include "bfme2x.h"
 
-#define DEBUG_CRASHFIX // print some info to file about the bfme2x crashfix
-
 namespace bfme2x
 {
 int GetGameLogicRandomValue(int min, int max, char *file, int line) { XCALL(0x006D328E); }
@@ -543,50 +541,28 @@ struct Version
 	}
 };
 
-#ifdef DEBUG_CRASHFIX
-FILE *crashfix_log;
-
-void log_ebx(uint32_t ebx)
+struct AIWallTactic
 {
-	if (!crashfix_log)
+	// this crashes because it seems like it tries to iterate some list (0xCC - 0xD0), but 0xCC is NULL
+	// i assume this is because "this" already got destroyed, because it only happens when ai gets killed
+	// so first, we just log the pointers and time each time this is called ...
+	bool crashes()
 	{
-		crashfix_log = fopen("crashfix_log.txt", "w");
+		static FILE *log;
+
+		if (!log)
+		{
+			log = fopen("aiwalltactic_crashfix_log.txt", "a");
+		}
+
+		if (log)
+		{
+			fprintf(log, "time: %d, 0xCC: %p, 0xD0: %p\n", std::time(nullptr), FIELD(void *, this, 0xCC), FIELD(void *, this, 0xD0));
+		}
+
+		return false;
 	}
-
-	if (crashfix_log)
-	{
-		fprintf(crashfix_log, "time: %d, ebx: %08X\n", std::time(nullptr), ebx);
-	}
-}
-#endif
-
-// this crashes because ebx can apparently be NULL even though it shouldn't be
-// so here's a quick check if it is NULL ...
-// TODO: so far this is untested
-ASM(AIWallTactic_crashfix)
-{
-#ifdef DEBUG_CRASHFIX
-	__asm
-	{
-		pusha
-		push ebx
-		call log_ebx
-		pop ebx
-		popa
-	}
-#endif
-
-	__asm
-	{
-		test ebx, ebx
-		jz locret
-	}
-
-	RET(0x009B6318);
-
-locret:
-	RET(0x009B63E7);
-}
+};
 
 int parseNoShellMap(char **argv, int argc) { XCALL(0x007B9EC7); }
 int parseMod(char **argv, int argc) { XCALL(0x007BADB9); }
@@ -869,8 +845,7 @@ void patch()
 		}
 		else
 		{
-			InjectHook(0x009B63E1, &AIWallTactic_crashfix);
-			Nop(0x009B63E1 + 5);
+			InjectHook(0x009B7186, &AIWallTactic::crashes);
 		}
 	}
 
