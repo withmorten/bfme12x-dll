@@ -553,6 +553,8 @@ struct AIWallTactic
 		if (!log)
 		{
 			log = fopen("aiwalltactic_crashfix_log.txt", "a");
+
+			if (log) setbuf(log, NULL);
 		}
 
 		if (log)
