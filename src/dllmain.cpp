@@ -1,30 +1,35 @@
 #include "dllmain.h"
 #include "patch.h"
 
+FLOAT GetPrivateProfileFloatA(LPCSTR lpAppName, LPCTSTR lpKeyName, FLOAT fDefault, LPCSTR lpFileName)
+{
+	CHAR lpReturnedString[1024];
+
+	DWORD dwVal = GetPrivateProfileString(lpAppName, lpKeyName, "", lpReturnedString, sizeof(lpReturnedString), lpFileName);
+
+	return dwVal ? (FLOAT)atof(lpReturnedString) : fDefault;
+}
+
 static char ini_path[MAX_PATH];
 
-UINT get_private_profile_int(LPCTSTR lpKeyName, INT nDefault)
+UINT get_dll_int(LPCTSTR lpKeyName, INT nDefault)
 {
 	return GetPrivateProfileInt(DLL_NAME, lpKeyName, nDefault, ini_path);
 }
 
-UINT get_private_profile_bool(LPCTSTR lpKeyName, INT nDefault)
+UINT get_dll_bool(LPCTSTR lpKeyName, INT nDefault)
 {
-	return get_private_profile_int(lpKeyName, nDefault);
+	return get_dll_int(lpKeyName, nDefault);
 }
 
-DWORD get_private_profile_string(LPCTSTR lpKeyName, LPCTSTR lpDefault, LPTSTR lpReturnedString, DWORD nSize)
+DWORD get_dll_string(LPCTSTR lpKeyName, LPCTSTR lpDefault, LPTSTR lpReturnedString, DWORD nSize)
 {
 	return GetPrivateProfileString(DLL_NAME, lpKeyName, lpDefault, lpReturnedString, nSize, ini_path);
 }
 
-FLOAT get_private_profile_float(LPCTSTR lpKeyName, LPCTSTR lpDefault)
+FLOAT get_dll_float(LPCTSTR lpKeyName, FLOAT fDefault)
 {
-	CHAR lpReturnedString[MAX_PATH];
-
-	get_private_profile_string(lpKeyName, lpDefault, lpReturnedString, sizeof(lpReturnedString));
-
-	return (FLOAT)atof(lpReturnedString);
+	return GetPrivateProfileFloat(DLL_NAME, lpKeyName, fDefault, ini_path);
 }
 
 void init_private_profile()
@@ -47,7 +52,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved)
 	if (fdwReason == DLL_PROCESS_ATTACH)
 	{
 		init_private_profile();
-		if (stristr(GetCommandLine(), "-console") || get_private_profile_bool("AllocConsole", FALSE)) init_console();
+		if (stristr(GetCommandLine(), "-console") || get_dll_bool("AllocConsole", FALSE)) init_console();
 
 		patch();
 	}

@@ -26,7 +26,7 @@ struct GlobalData
 
 	void _setTimeOfDay_forced(TimeOfDay t)
 	{
-		UINT u = get_private_profile_int("force_time_of_day", NONE);
+		UINT u = get_dll_int("force_time_of_day", NONE);
 
 		if (u >= MORNING && u <= NIGHT)
 		{
@@ -44,7 +44,7 @@ struct GlobalData
 		// going by worldbuilder asserts, you shouldn't call this outside of an actual gamelogic phase ... but eh
 		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
 
-		if (get_private_profile_int("random_time_of_day", 0) == 1)
+		if (get_dll_int("random_time_of_day", 0) == 1)
 		{
 			FIELD(TimeOfDay, this, 0x134) = r;
 		}
@@ -278,6 +278,7 @@ struct INI
 {
 	static void parseReal(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042ED00); }
 	static void parseInt(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042EC5E); }
+	static void parseUnsignedInt(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042ECB2); }
 	static void parseUnsignedShort(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042EC11); }
 	static void parsePercentToReal(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x0042EEFA); }
 
@@ -321,6 +322,26 @@ struct INI
 		memcpy(store, &val, sizeof(val));
 	}
 
+	static void _parseUnsignedIntRespawnCost(INI *ini, void *formal, void *store, const void *user_data)
+	{
+		parseUnsignedInt(ini, formal, store, user_data);
+
+		unsigned int val;
+		memcpy(&val, store, sizeof(val));
+		if (val > 10) val = 10;
+		memcpy(store, &val, sizeof(val));
+	}
+
+	static void _parseIntRespawnTime(INI *ini, void *formal, void *store, const void *user_data)
+	{
+		parseInt(ini, formal, store, user_data);
+
+		int val;
+		memcpy(&val, store, sizeof(val));
+		if (val > (5 * 1000)) val = (5 * 1000);
+		memcpy(store, &val, sizeof(val));
+	}
+
 	static void _parseRealShroudClearingRange(INI *ini, void *formal, void *store, const void *user_data)
 	{
 		parseReal(ini, formal, store, user_data);
@@ -341,7 +362,7 @@ struct INI
 	{
 		parsePercentToReal(ini, formal, store, user_data);
 
-		float val = get_private_profile_float("brutal_difficulty_build_cost_reduction", "15") / 100.0f;
+		float val = get_dll_float("brutal_difficulty_build_cost_reduction", 15.0f) / 100.0f;
 		memcpy(store, &val, sizeof(val));
 	}
 
@@ -349,7 +370,7 @@ struct INI
 	{
 		parsePercentToReal(ini, formal, store, user_data);
 
-		float val = get_private_profile_float("brutal_difficulty_build_time_reduction", "15") / 100.0f;
+		float val = get_dll_float("brutal_difficulty_build_time_reduction", 15.0f) / 100.0f;
 		memcpy(store, &val, sizeof(val));
 	}
 };
@@ -773,7 +794,7 @@ ASM(fix_parseCommandLine)
 
 void patch()
 {
-	if (get_private_profile_bool("must_have", TRUE))
+	if (get_dll_bool("must_have", TRUE))
 	{
 		// disable WinVerifyTrust check, fixes random version
 		Nop(0x006444A1, 6 + 2 + 6 + 2);
@@ -793,7 +814,7 @@ void patch()
 		Patch(0x00635FA4 + 1, "LotRIcon.exe");
 	}
 
-	if (get_private_profile_bool("params", TRUE))
+	if (get_dll_bool("params", TRUE))
 	{
 		// commandline arguments
 		Patch(0x007BAA4B + 1, params); // ArchiveFileSystem::loadMods()
@@ -806,7 +827,7 @@ void patch()
 	}
 
 	// enables handicap from -100% to +100% (Bonus instead of Handicap)
-	if (get_private_profile_bool("handicap", TRUE))
+	if (get_dll_bool("handicap", TRUE))
 	{
 		// first we fix the dropdown list
 		// AptMpGameSetup::PopulateHandicapCombo()
@@ -838,9 +859,9 @@ void patch()
 	// 0x009B6318 - fix crash when defeating enemy - apparently AIWallTactic related - AIWallTactic got added in rotwk ...
 	// 0x01542190 (function, not potential crash addr) in WorldBuilder, but unfortunately no debug asserts there
 	// is being called by AIWallTactic::update() (deduced from other vtable placements)
-	if (get_private_profile_int("aiwalltactic_crashfix", 1) != 0)
+	if (get_dll_int("aiwalltactic_crashfix", 1) != 0)
 	{
-		if (get_private_profile_int("aiwalltactic_crashfix", 1) == 1)
+		if (get_dll_int("aiwalltactic_crashfix", 1) == 1)
 		{
 			BYTE sub_9B62F6[] = { 0x30, 0xC0, 0xC3 };
 			PatchBytes(0x009B62F6, sub_9B62F6);
@@ -851,7 +872,7 @@ void patch()
 		}
 	}
 
-	if (get_private_profile_bool("gamereplays_rand", TRUE) && !is_bfme2x_202())
+	if (get_dll_bool("gamereplays_rand", TRUE) && !is_bfme2x_202())
 	{
 		// called by i.e. GetGameLogicRandomValue, seems to be a custom rand function
 		BYTE sub_6D315D[] = { 0x53, 0x8B, 0x01, 0x31, 0xD2, 0xBB, 0x05, 0x84, 0x08, 0x08, 0xF7, 0xE3, 0x83, 0xC0, 0x01, 0x89, 0x01, 0x31, 0xD0, 0x5B, 0xC3 };
@@ -862,7 +883,7 @@ void patch()
 		PatchBytes(0x006D31D4, sub_6D31D4);
 	}
 
-	if (get_private_profile_bool("no_logo", TRUE))
+	if (get_dll_bool("no_logo", TRUE))
 	{
 		Patch(0x0064309B + 2, 0xAF3); // GlobalData::GlobalData()
 		Patch(0x006430A2 + 2, 0xAF2); // GlobalData::GlobalData()
@@ -874,19 +895,19 @@ void patch()
 	}
 
 	// and override if we want a random one
-	if (get_private_profile_int("random_time_of_day", 0) != 0)
+	if (get_dll_int("random_time_of_day", 0) != 0)
 	{
 		InjectHook(0x00462A4D, &GlobalData::_setTimeOfDay_random); // W3DTerrainLogic::loadMap()
 	}
 
-	if (get_private_profile_bool("disable_asset_building", TRUE))
+	if (get_dll_bool("disable_asset_building", TRUE))
 	{
 		PatchByte(0x00D9B2A0, false); // assetCacheBuilder.exe
 		PatchByte(0x00D9B2A1, false); // TextureAssetBuilder.exe
 		PatchByte(0x00D9B2A2, false); // ShaderAssetBuilder.exe
 	}
 
-	if (get_private_profile_bool("asset2_dat", TRUE))
+	if (get_dll_bool("asset2_dat", TRUE))
 	{
 		InjectHook(0x0052CC5B, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
@@ -908,7 +929,7 @@ void patch()
 		FindClose(handle);
 	}
 
-	if (get_private_profile_bool("bfme2_campaign", FALSE))
+	if (get_dll_bool("bfme2_campaign", FALSE))
 	{
 		// the only difference between this and SubsystemLegendExpansion1.ini is LinearCampaign vs LinearCampaignExpansion1
 		Patch(0x0063AF50 + 1, "Data\\INI\\Default\\SubsystemLegend.ini"); // GameEngine::init()
@@ -928,7 +949,7 @@ void patch()
 		PatchBytes(0x006E5E16, sub_6E5E16);
 	}
 
-	if (get_private_profile_bool("no_skirmish_ai", FALSE))
+	if (get_dll_bool("no_skirmish_ai", FALSE))
 	{
 		g_bDisableSkirmishAI = true;
 	}
@@ -938,7 +959,7 @@ void patch()
 		Patch(0x00C13E24, &SkirmishAIManager::_update);
 	}
 
-	if (get_private_profile_bool("no_wotr_ai", FALSE))
+	if (get_dll_bool("no_wotr_ai", FALSE))
 	{
 		g_bDisableWOTRAI = true;
 	}
@@ -949,13 +970,13 @@ void patch()
 		InjectHook(0x006BB4B0, &LivingWorldPlayer::_SetAI);
 	}
 
-	if (get_private_profile_bool("brutal_difficulty_cheats", FALSE))
+	if (get_dll_bool("brutal_difficulty_cheats", FALSE))
 	{
 		Patch(0x00C13948, &INI::_parsePercentToRealBuildCostReduction);
 		Patch(0x00C13958, &INI::_parsePercentToRealBuildTimeReduction);
 	}
 
-	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
+	if (get_dll_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
 	{
 		Patch(0x00C1082C, &INI::_parseRealBuildTime);
 		Patch(0x00C1083C, &INI::_parseIntBuildCost);
@@ -963,29 +984,33 @@ void patch()
 		Patch(0x00DA402C, &INI::_parseUnsignedShortBuildCost);
 		Patch(0x00C56B2C, &INI::_parseRealRebuildTimeSeconds);
 		Patch(0x00DA3F1C, &INI::_parseRealShroudClearingRange);
+		InjectHook(0x008B3E6B, &INI::_parseUnsignedIntRespawnCost); // RespawnUpdate::iniParseDefaultRule()
+		InjectHook(0x008B3EC4, &INI::_parseIntRespawnTime); // RespawnUpdate::iniParseDefaultRule()
+		InjectHook(0x008B411F, &INI::_parseUnsignedIntRespawnCost); // RespawnUpdate::iniParseNewRuleForLevel()
+		InjectHook(0x008B4165, &INI::_parseIntRespawnTime); // RespawnUpdate::iniParseNewRuleForLevel()
 
-		g_nIgnoreTicks = get_private_profile_int("ignore_ticks", 60);
+		g_nIgnoreTicks = get_dll_int("ignore_ticks", 60);
 		if (g_nIgnoreTicks <= 0) g_nIgnoreTicks = 1;
 
 		if (g_nIgnoreTicks != 1) Patch(0x00C13E24, &SkirmishAIManager::_update_ignore_ticks);
 	}
 
-	if (get_private_profile_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
+	if (get_dll_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
 	{
 		Patch(0x00C11C04, &INI::_parseIntExperienceAward);
 	}
 
-	if (get_private_profile_bool("no_shroud", FALSE) || stristr(GetCommandLine(), "-noshroud"))
+	if (get_dll_bool("no_shroud", FALSE) || stristr(GetCommandLine(), "-noshroud"))
 	{
 		Patch(0x00DA3F1C, &INI::_parseRealShroudClearingRange);
 	}
 
-	if (get_private_profile_bool("edit_system_cah", FALSE))
+	if (get_dll_bool("edit_system_cah", FALSE))
 	{
 		g_bEditSystemCreateAHero = true;
 	}
 
-	if (get_private_profile_bool("fix_wotr", FALSE))
+	if (get_dll_bool("fix_wotr", FALSE))
 	{
 		NopTo(0x00841835, 0x00841844); // this just quick & dirty enables more humans to be enabled - BUT the game doesn't think 3-6 are humans!
 		
@@ -1032,7 +1057,7 @@ bool _LoadSingleAssetDat(FILE *f, int a2)
 
 void patch()
 {
-	if (get_private_profile_bool("must_have", TRUE))
+	if (get_dll_bool("must_have", TRUE))
 	{
 		// don't check for bfme2 game.dat (so it can be renamed to RTS.exe)
 		Patch(0x00CA4889 + 1, "LotRIcon.exe");
@@ -1040,12 +1065,12 @@ void patch()
 		Patch(0x00CA48AF + 1, "LotRIcon.exe");
 	}
 
-	if (get_private_profile_bool("asset2_dat", TRUE))
+	if (get_dll_bool("asset2_dat", TRUE))
 	{
 		InjectHook(0x009D8027, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
 
-	if (get_private_profile_bool("compression_none_default", TRUE))
+	if (get_dll_bool("compression_none_default", TRUE))
 	{
 		Patch(0x006C0240 + 1, 0); // CompressionManager::getPreferredCompression()
 

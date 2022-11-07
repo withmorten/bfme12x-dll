@@ -22,7 +22,7 @@ struct LivingWorldLogic
 
 void patch()
 {
-	if (get_private_profile_bool("must_have", TRUE))
+	if (get_dll_bool("must_have", TRUE))
 	{
 		// disable WinVerifyTrust check, fixes random version
 		Nop(0x00637E0A, 6 + 2 + 6 + 2);
@@ -40,13 +40,13 @@ void patch()
 		PatchString(0x00C19734, "censored.dat");
 	}
 
-	if (get_private_profile_bool("no_logo", TRUE))
+	if (get_dll_bool("no_logo", TRUE))
 	{
 		Patch(0x00636A0A + 2, 0xAF3); // GlobalData::GlobalData()
 		Patch(0x00636A11 + 2, 0xAF2); // GlobalData::GlobalData()
 	}
 
-	if (get_private_profile_bool("fix_wotr", FALSE))
+	if (get_dll_bool("fix_wotr", FALSE))
 	{
 		// LivingWorldCampaign::CreatePlayers()
 		InjectHook(0x0092C65D, &LivingWorldLogic::_AddPlayer);
@@ -59,7 +59,7 @@ namespace wb2
 {
 void patch()
 {
-	if (get_private_profile_bool("compression_none_default", TRUE))
+	if (get_dll_bool("compression_none_default", TRUE))
 	{
 		Patch(0x006BFD60 + 1, 0); // CompressionManager::getPreferredCompression()
 

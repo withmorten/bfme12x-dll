@@ -21,10 +21,10 @@ workspace "bfme12x"
 project "bfme12x"
 	defines { "DLL_NAME=\"" .. "bfme12x" .. "\"" }
 
-	setdebugpath ("G:\\Program Files\\EA Games\\The Rise of the Witch-King", "RTS.exe", "-xres 800 -yres 600 -win -preferlocalfiles -quickstart -nomusic")
-	addcopypath ("G:\\Program Files\\EA Games\\The Battle for Middle-Earth")
-	addcopypath ("G:\\Program Files\\EA Games\\The Battle for Middle-Earth II")
-	addcopypath ("G:\\Program Files\\EA Games\\The Rise of the Witch-King")
+	setdebugpath ("C:\\Games\\The Rise of the Witch-King", "RTS.exe", "-xres 800 -yres 600 -win -preferlocalfiles -quickstart -nomusic")
+	addcopypath ("C:\\Games\\The Battle for Middle-Earth")
+	addcopypath ("C:\\Games\\The Battle for Middle-Earth II")
+	addcopypath ("C:\\Games\\The Rise of the Witch-King")
 	addcopypath ("G:\\sharedwithtammo\\b4me\\___mod")
 	addcopypath ("G:\\sharedwithtammo\\b4me2ep1_stuff\\___mod")
 

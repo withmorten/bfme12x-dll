@@ -21,7 +21,7 @@ struct GlobalData
 
 	void _setTimeOfDay_forced(TimeOfDay t)
 	{
-		UINT u = get_private_profile_int("force_time_of_day", NONE);
+		UINT u = get_dll_int("force_time_of_day", NONE);
 
 		if (u >= MORNING && u <= NIGHT)
 		{
@@ -39,7 +39,7 @@ struct GlobalData
 		// going by worldbuilder asserts, you shouldn't call this outside of an actual gamelogic phase ... but eh
 		TimeOfDay r = (TimeOfDay)GetGameLogicRandomValue(MORNING, NIGHT, __FILE__, __LINE__);
 
-		if (get_private_profile_int("random_time_of_day", 0) == 1)
+		if (get_dll_int("random_time_of_day", 0) == 1)
 		{
 			FIELD(TimeOfDay, this, 0x218) = r;
 		}
@@ -58,6 +58,7 @@ struct INI
 {
 	static void parseReal(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x00C52B20); }
 	static void parseInt(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x00C52A60); }
+	static void parseUnsignedInt(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x00C52AC0); }
 	static void parseUnsignedShort(INI *ini, void *formal, void *store, const void *user_data) { XCALL(0x00C529E0); }
 
 	static void _parseRealBuildTime(INI *ini, void *formal, void *store, const void *user_data)
@@ -97,6 +98,26 @@ struct INI
 		float val;
 		memcpy(&val, store, sizeof(val));
 		if (val > 5.0f) val = 5.0f;
+		memcpy(store, &val, sizeof(val));
+	}
+
+	static void _parseUnsignedIntRespawnCost(INI *ini, void *formal, void *store, const void *user_data)
+	{
+		parseUnsignedInt(ini, formal, store, user_data);
+
+		unsigned int val;
+		memcpy(&val, store, sizeof(val));
+		if (val > 10) val = 10;
+		memcpy(store, &val, sizeof(val));
+	}
+
+	static void _parseIntRespawnTime(INI *ini, void *formal, void *store, const void *user_data)
+	{
+		parseInt(ini, formal, store, user_data);
+
+		int val;
+		memcpy(&val, store, sizeof(val));
+		if (val > (5 * 1000)) val = (5 * 1000);
 		memcpy(store, &val, sizeof(val));
 	}
 
@@ -318,7 +339,7 @@ ret_false:;
 
 void patch()
 {
-	if (get_private_profile_bool("must_have", TRUE))
+	if (get_dll_bool("must_have", TRUE))
 	{
 		// disable needing the launcher
 		Nop(0x00460598, 5 + 2 + 2 + 5 + 2);
@@ -337,7 +358,7 @@ void patch()
 		PatchByte(0x0091DB66 + 1, 0x84);
 	}
 
-	if (get_private_profile_bool("params", TRUE))
+	if (get_dll_bool("params", TRUE))
 	{
 		// commandline arguments
 		Patch(0x00463BE9 + 2, &params->name); // parseCommandLine()
@@ -361,7 +382,7 @@ void patch()
 	}
 
 	// doesnt't get centered properly, so don't enable this
-	if (get_private_profile_bool("alt_splash_screen", FALSE))
+	if (get_dll_bool("alt_splash_screen", FALSE))
 	{
 		Patch(0x0045F337 + 4, 640);
 		Patch(0x0045F33F + 4, 480);
@@ -369,7 +390,7 @@ void patch()
 		Patch(0x004603BB + 1, "00000000.256"); // WinMain()
 	}
 
-	if (get_private_profile_bool("no_logo", TRUE))
+	if (get_dll_bool("no_logo", TRUE))
 	{
 		Patch(0x0048537E + 2, 0xBB7); // GlobalData::GlobalData()
 		Patch(0x00485388 + 2, 0xBB6); // GlobalData::GlobalData()
@@ -381,23 +402,23 @@ void patch()
 	}
 
 	// and override if we want a random one
-	if (get_private_profile_int("random_time_of_day", 0) != 0)
+	if (get_dll_int("random_time_of_day", 0) != 0)
 	{
 		InjectHook(0x00ABED80, &GlobalData::_setTimeOfDay_random); // W3DTerrainLogic::loadMap()
 	}
 
-	if (get_private_profile_bool("disable_asset_building", TRUE))
+	if (get_dll_bool("disable_asset_building", TRUE))
 	{
 		PatchJump(0x00D3864F, 0x00D3870E);
 		Nop(0x00D3864F + 5);
 	}
 
-	if (get_private_profile_bool("asset2_dat", TRUE))
+	if (get_dll_bool("asset2_dat", TRUE))
 	{
 		InjectHook(0x00D3898C, &_LoadSingleAssetDat); // InitializeAssetManager()
 	}
 
-	if (get_private_profile_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
+	if (get_dll_bool("fire_sale", FALSE) || stristr(GetCommandLine(), "-dev"))
 	{
 		Patch(0x01088B94, &INI::_parseRealBuildTime);
 		Patch(0x01088BA4, &INI::_parseIntBuildCost);
@@ -405,14 +426,18 @@ void patch()
 		Patch(0x01091234, &INI::_parseUnsignedShortBuildCost);
 		Patch(0x010A4524, &INI::_parseRealRebuildTimeSeconds);
 		Patch(0x01091194, &INI::_parseRealShroudClearingRange);
+		InjectHook(0x006A28B3, &INI::_parseUnsignedIntRespawnCost); // RespawnUpdate::iniParseDefaultRule()
+		InjectHook(0x006A2932, &INI::_parseIntRespawnTime); // RespawnUpdate::iniParseDefaultRule()
+		InjectHook(0x006A2D63, &INI::_parseUnsignedIntRespawnCost); // RespawnUpdate::iniParseNewRuleForLevel()
+		InjectHook(0x006A2DB2, &INI::_parseIntRespawnTime); // RespawnUpdate::iniParseNewRuleForLevel()
 	}
 
-	if (get_private_profile_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
+	if (get_dll_bool("xp_map", FALSE) || stristr(GetCommandLine(), "-exp"))
 	{
 		Patch(0x010EAB5C, &INI::_parseIntExperienceAward);
 	}
 
-	if (get_private_profile_bool("no_shroud", FALSE) || stristr(GetCommandLine(), "-noshroud"))
+	if (get_dll_bool("no_shroud", FALSE) || stristr(GetCommandLine(), "-noshroud"))
 	{
 		Patch(0x01091194, &INI::_parseRealShroudClearingRange);
 	}
@@ -423,14 +448,14 @@ namespace wb1
 {
 void patch()
 {
-	if (get_private_profile_bool("must_have", TRUE))
+	if (get_dll_bool("must_have", TRUE))
 	{
 		// get rid of eula popup
 		Nop(0x004F73CA, 6);
 		Nop(0x004F73D4, 5 + 3 + 6);
 	}
 
-	if (get_private_profile_bool("compression_none_default", TRUE))
+	if (get_dll_bool("compression_none_default", TRUE))
 	{
 		Patch(0x00508480 + 1, 0); // CompressionManager::getPreferredCompression()
 
