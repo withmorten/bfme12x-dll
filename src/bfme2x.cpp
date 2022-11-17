@@ -617,7 +617,7 @@ int parseSelectTheUnselectable(char **argv, int argc)
 {
 	if (TheWritableGlobalData)
 	{
-		FIELD(bool, TheWritableGlobalData, 0xC6C) = false;
+		FIELD(bool, TheWritableGlobalData, 0xC6C) = true;
 	}
 
 	return 1;
