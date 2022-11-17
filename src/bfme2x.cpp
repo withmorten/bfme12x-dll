@@ -738,44 +738,44 @@ struct cmd_arg
 
 cmd_arg params[] =
 {
-	{ "-noshellmap",				parseNoShellMap }, // original
-	{ "-mod",						parseMod }, // original
-	{ "-noaudio",					parseNoAudio }, // original
-	{ "-xres",						parseXRes }, // original
-	{ "-yres",						parseYRes }, // original
-	{ "-win",						parseWin }, // original
-	{ "-scriptDebug2",				parseScriptDebug2 }, // original
-	{ "-scriptDebugLite",			parseScriptDebugLite }, // original
-	{ "-fullVersion",				parseFullVersion }, // original
-	{ "-preferLocalFiles",			parsePreferLocalFiles }, // original
-	{ "-Watchdog",					parseWatchdog }, // original
-	{ "-noWatchdog",				parseNoWatchdog }, // original
-	{ "-rif",						parseRif }, // original
-	{ "-file",						parseFile }, // original
-	{ "-resumeGame",				parseResumeGame }, // original
-	{ "-noMusic",					parseNoMusic },
-	{ "-noViewLimit",				parseNoViewLimit }, // no idea what it does
-	{ "-hugedump",					parseHugeDump },
-	{ "-selectTheUnselectable",		parseSelectTheUnselectable }, // doesn't seem to work
-	{ "-noshroud",					parseNoShroud }, // doesn't seem to work
-	{ "-shellmap",					parseShellMap },
-	{ "-noShellAnim",				parseNoShellAnim },
-	{ "-buildmapcache",				parseBuildMapCache },
-	{ "-winCursors",				parseWinCursors }, // doesn't seem to work
-	{ "-nologo",					parseNoLogo },
-	{ "-quickstart",				parseQuickStart },
-	{ "-helpText",					parseHelpText }, // no idea what it does
-	{ "-nohousecolor",				parseNoHouseColor },
-	{ "-noMuteOnFocusLoss",			parseNoMuteOnFocusLoss },
-	{ "-StartingMoney",				parseStartingMoney }, // doesn't seem to work
-	{ "-fastGamePlay",				parseFastGamePlay }, // doesn't seem to work
-	{ "-noSkipPreload",				parseNoSkipPreload }, // no idea what it does
-	{ "-lwturbo",					parseLWTurbo }, // no idea what it does
-	{ "-skipmapunroll",				parseSkipMapUnroll },
-	{ "-disableSkirmishAI",			parseDisableSkirmishAI },
-	{ "-disableWOTRAI",				parseDisableWOTRAI },
-	{ "-editSystemCreateAHero",		parseEditSystemCreateAHero },
-	{ "-randomSeed",				parseRandomSeed }, // original
+	{ "-noshellmap",                parseNoShellMap }, // original
+	{ "-mod",                       parseMod }, // original
+	{ "-noaudio",                   parseNoAudio }, // original
+	{ "-xres",                      parseXRes }, // original
+	{ "-yres",                      parseYRes }, // original
+	{ "-win",                       parseWin }, // original
+	{ "-scriptDebug2",              parseScriptDebug2 }, // original
+	{ "-scriptDebugLite",           parseScriptDebugLite }, // original
+	{ "-fullVersion",               parseFullVersion }, // original
+	{ "-preferLocalFiles",          parsePreferLocalFiles }, // original
+	{ "-Watchdog",                  parseWatchdog }, // original
+	{ "-noWatchdog",                parseNoWatchdog }, // original
+	{ "-rif",                       parseRif }, // original
+	{ "-file",                      parseFile }, // original
+	{ "-resumeGame",                parseResumeGame }, // original
+	{ "-noMusic",                   parseNoMusic },
+	{ "-noViewLimit",               parseNoViewLimit }, // no idea what it does
+	{ "-hugedump",                  parseHugeDump },
+	{ "-selectTheUnselectable",     parseSelectTheUnselectable }, // doesn't seem to work
+	{ "-noshroud",                  parseNoShroud }, // doesn't seem to work
+	{ "-shellmap",                  parseShellMap },
+	{ "-noShellAnim",               parseNoShellAnim },
+	{ "-buildmapcache",             parseBuildMapCache },
+	{ "-winCursors",                parseWinCursors }, // doesn't seem to work
+	{ "-nologo",                    parseNoLogo },
+	{ "-quickstart",                parseQuickStart },
+	{ "-helpText",                  parseHelpText }, // no idea what it does
+	{ "-nohousecolor",              parseNoHouseColor },
+	{ "-noMuteOnFocusLoss",         parseNoMuteOnFocusLoss },
+	{ "-StartingMoney",             parseStartingMoney }, // doesn't seem to work
+	{ "-fastGamePlay",              parseFastGamePlay }, // doesn't seem to work
+	{ "-noSkipPreload",             parseNoSkipPreload }, // no idea what it does
+	{ "-lwturbo",                   parseLWTurbo }, // no idea what it does
+	{ "-skipmapunroll",             parseSkipMapUnroll },
+	{ "-disableSkirmishAI",         parseDisableSkirmishAI },
+	{ "-disableWOTRAI",             parseDisableWOTRAI },
+	{ "-editSystemCreateAHero",     parseEditSystemCreateAHero },
+	{ "-randomSeed",                parseRandomSeed }, // original
 };
 
 const size_t num_params = sizeof(params) / sizeof(params[0]);
