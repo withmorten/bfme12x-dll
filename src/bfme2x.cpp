@@ -814,6 +814,12 @@ void patch()
 		Patch(0x00635FA4 + 1, "LotRIcon.exe");
 	}
 
+	if (get_dll_bool("disable_set_gamma_ramp", FALSE) || stristr(GetCommandLine(), "-noyellow"))
+	{
+		// get rid of SetGammaRamp
+		Nop(0x005204C4, 1 + 1 + 2 + 1 + 3);
+	}
+
 	if (get_dll_bool("params", TRUE))
 	{
 		// commandline arguments
@@ -881,6 +887,15 @@ void patch()
 		// called by InitRandom, inits a seed array used by above function
 		BYTE sub_6D31D4[] = { 0x53, 0x52, 0xBB, 0xED, 0xFF, 0xFF, 0x7F, 0xF7, 0xE3, 0x89, 0x01, 0x89, 0x41, 0x04, 0x89, 0x41, 0x08, 0x89, 0x41, 0x0C, 0x89, 0x41, 0x10, 0x89, 0x41, 0x14, 0x5A, 0x5B, 0xC3 };
 		PatchBytes(0x006D31D4, sub_6D31D4);
+	}
+
+	if (get_dll_bool("gamereplays_delay_fix", FALSE) || stristr(GetCommandLine(), "-delayfix"))
+	{
+		static int danetta_logicFPS = 8;
+		Patch(0x00632535 + 2, &danetta_logicFPS); // sub_63252F()
+
+		BYTE phasedUpdateLogic_patch[] = { 0xB8, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x19, 0x90 };
+		PatchBytes(0x00632A9B, phasedUpdateLogic_patch); // GameEngine::phasedUpdateLogic()
 	}
 
 	if (get_dll_bool("no_logo", TRUE))
@@ -1026,6 +1041,15 @@ void patch()
 		//PatchByte(0x0084592A, 0xEB);
 	}
 
+	if (get_dll_bool("use_local_user_maps", TRUE))
+	{
+		Patch(0x00D9F540, TRUE);
+	}
+
+	// PatchByte(0x005257AA, 0xEB);
+	// PatchByte(0x005257C3, 0xEB);
+	// PatchByte(0x00525818, 0xEB);
+
 	// some notes of other old patches:
 	// 0x0043D746: mov dl, 1 + nops for full crashdumps
 	// 0x00A20DDC: jmp, for empty create a heroes? now we know it's a generic seralizer for a data format, so not good to patch around in there
@@ -1075,6 +1099,11 @@ void patch()
 		Patch(0x006C0240 + 1, 0); // CompressionManager::getPreferredCompression()
 
 		Nop(0x0056BBD6, 3 + 1 + 5 + 5 + 1 + 3 + 5 + 3 + 4 + 2 + 2); // MapSettings::OnInitDialog()
+	}
+
+	if (get_dll_bool("use_local_user_maps", TRUE))
+	{
+		Patch(0x02231E34, TRUE);
 	}
 }
 }

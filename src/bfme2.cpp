@@ -40,6 +40,12 @@ void patch()
 		PatchString(0x00C19734, "censored.dat");
 	}
 
+	if (get_dll_bool("disable_set_gamma_ramp", FALSE) || stristr(GetCommandLine(), "-noyellow"))
+	{
+		// get rid of SetGammaRamp
+		Nop(0x00520B44, 1 + 1 + 2 + 1 + 3);
+	}
+
 	if (get_dll_bool("no_logo", TRUE))
 	{
 		Patch(0x00636A0A + 2, 0xAF3); // GlobalData::GlobalData()
@@ -51,6 +57,11 @@ void patch()
 		// LivingWorldCampaign::CreatePlayers()
 		InjectHook(0x0092C65D, &LivingWorldLogic::_AddPlayer);
 		InjectHook(0x0092C6F5, &LivingWorldLogic::_AddPlayer);
+	}
+
+	if (get_dll_bool("use_local_user_maps", TRUE))
+	{
+		Patch(0x00DBA41C, TRUE);
 	}
 }
 };
@@ -64,6 +75,11 @@ void patch()
 		Patch(0x006BFD60 + 1, 0); // CompressionManager::getPreferredCompression()
 
 		Nop(0x0056BB86, 3 + 1 + 5 + 5 + 1 + 3 + 5 + 3 + 4 + 2 + 2); // MapSettings::OnInitDialog()
+	}
+
+	if (get_dll_bool("use_local_user_maps", TRUE))
+	{
+		Patch(0x021CACC4, TRUE);
 	}
 }
 };

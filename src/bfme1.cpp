@@ -358,6 +358,12 @@ void patch()
 		PatchByte(0x0091DB66 + 1, 0x84);
 	}
 
+	if (get_dll_bool("disable_set_gamma_ramp", FALSE) || stristr(GetCommandLine(), "-noyellow"))
+	{
+		// get rid of SetGammaRamp
+		Nop(0x00D05945, 1 + 1 + 2 + 1 + 3);
+	}
+
 	if (get_dll_bool("params", TRUE))
 	{
 		// commandline arguments
@@ -441,6 +447,11 @@ void patch()
 	{
 		Patch(0x01091194, &INI::_parseRealShroudClearingRange);
 	}
+
+	if (get_dll_bool("use_local_user_maps", TRUE))
+	{
+		Patch(0x012ABE78, TRUE);
+	}
 }
 }
 
@@ -461,6 +472,11 @@ void patch()
 
 		Nop(0x004815E1, 6 + 1 + 5); // MapSettings::OnInitDialog()
 		Nop(0x004815F4, 5 + 1 + 2 + 5 + 7 + 2); // MapSettings::OnInitDialog()
+	}
+
+	if (get_dll_bool("use_local_user_maps", TRUE))
+	{
+		Patch(0x013B282C, TRUE);
 	}
 }
 }
